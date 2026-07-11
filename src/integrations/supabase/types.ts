@@ -14,7 +14,121 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      folders: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          parent_folder_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          parent_folder_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          parent_folder_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      items: {
+        Row: {
+          archived: boolean
+          color: string | null
+          completed: boolean
+          content: string | null
+          created_at: string
+          due_date: string | null
+          event_date: string | null
+          folder_id: string | null
+          height: number | null
+          id: string
+          pinned: boolean
+          pos_x: number | null
+          pos_y: number | null
+          priority: string | null
+          tags: string[]
+          title: string | null
+          type: Database["public"]["Enums"]["item_type"]
+          updated_at: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          archived?: boolean
+          color?: string | null
+          completed?: boolean
+          content?: string | null
+          created_at?: string
+          due_date?: string | null
+          event_date?: string | null
+          folder_id?: string | null
+          height?: number | null
+          id?: string
+          pinned?: boolean
+          pos_x?: number | null
+          pos_y?: number | null
+          priority?: string | null
+          tags?: string[]
+          title?: string | null
+          type: Database["public"]["Enums"]["item_type"]
+          updated_at?: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          archived?: boolean
+          color?: string | null
+          completed?: boolean
+          content?: string | null
+          created_at?: string
+          due_date?: string | null
+          event_date?: string | null
+          folder_id?: string | null
+          height?: number | null
+          id?: string
+          pinned?: boolean
+          pos_x?: number | null
+          pos_y?: number | null
+          priority?: string | null
+          tags?: string[]
+          title?: string | null
+          type?: Database["public"]["Enums"]["item_type"]
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +137,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      item_type: "sticky" | "notebook_page" | "task" | "event"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +264,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      item_type: ["sticky", "notebook_page", "task", "event"],
+    },
   },
 } as const
