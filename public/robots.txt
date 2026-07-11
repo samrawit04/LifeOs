@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /sticky
+Disallow: /notebooks
+Disallow: /calendar
+Disallow: /tasks
+Disallow: /archive
