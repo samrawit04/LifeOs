@@ -127,6 +127,7 @@ function Note({
 
   return (
     <div
+      data-sticky-note
       onDoubleClick={(e) => e.stopPropagation()}
       className={cn(
         "group absolute rounded-xl shadow-note transition-shadow",
