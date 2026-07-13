@@ -22,16 +22,20 @@ function StickyBoard() {
 
   const notes = items.filter((i) => i.type === "sticky" && !i.archived);
 
-  const onDoubleClick = (e: React.MouseEvent) => {
-    if (e.target !== boardRef.current) return;
-    const rect = boardRef.current!.getBoundingClientRect();
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only trigger when double-clicking empty board area, not a note
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-sticky-note]")) return;
+    const board = boardRef.current;
+    if (!board) return;
+    const rect = board.getBoundingClientRect();
     create.mutate(
       {
         type: "sticky",
         content: "",
         color: NOTE_COLORS[0].value,
-        pos_x: e.clientX - rect.left - DEFAULT_W / 2,
-        pos_y: e.clientY - rect.top - 30 + boardRef.current!.scrollTop,
+        pos_x: e.clientX - rect.left - DEFAULT_W / 2 + board.scrollLeft,
+        pos_y: e.clientY - rect.top - 30 + board.scrollTop,
         width: DEFAULT_W,
         height: DEFAULT_H,
       },
@@ -123,6 +127,7 @@ function Note({
 
   return (
     <div
+      data-sticky-note
       onDoubleClick={(e) => e.stopPropagation()}
       className={cn(
         "group absolute rounded-xl shadow-note transition-shadow",
