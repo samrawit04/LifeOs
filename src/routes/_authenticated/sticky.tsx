@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Pin, Trash2, X } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "@/hooks/use-lifeos";
-import { NOTE_COLORS, noteColorCss, type Item } from "@/lib/lifeos-types";
+import { NOTE_COLORS, noteColor, noteGradient, type Item } from "@/lib/lifeos-types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_authenticated/sticky")({
   component: StickyBoard,
 });
 
-const DEFAULT_W = 220;
-const DEFAULT_H = 200;
+const DEFAULT_W = 240;
+const DEFAULT_H = 220;
 
 function StickyBoard() {
   const { data: items = [] } = useItems();
@@ -23,17 +23,17 @@ function StickyBoard() {
   const notes = items.filter((i) => i.type === "sticky" && !i.archived);
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only trigger when double-clicking empty board area, not a note
     const target = e.target as HTMLElement;
     if (target.closest("[data-sticky-note]")) return;
     const board = boardRef.current;
     if (!board) return;
     const rect = board.getBoundingClientRect();
+    const palette = NOTE_COLORS[Math.floor(Math.random() * NOTE_COLORS.length)];
     create.mutate(
       {
         type: "sticky",
         content: "",
-        color: NOTE_COLORS[0].value,
+        color: palette.value,
         pos_x: e.clientX - rect.left - DEFAULT_W / 2 + board.scrollLeft,
         pos_y: e.clientY - rect.top - 30 + board.scrollTop,
         width: DEFAULT_W,
@@ -47,7 +47,7 @@ function StickyBoard() {
     <div className="flex h-[calc(100vh-56px)] flex-col lg:h-screen">
       <header className="flex items-center justify-between border-b border-border/60 bg-background/60 px-6 py-4 backdrop-blur">
         <div>
-          <h1 className="font-display text-2xl text-lagoon">Sticky board</h1>
+          <h1 className="font-display text-2xl text-gradient-indigo">Sticky board</h1>
           <p className="text-sm text-muted-foreground">
             Double-click anywhere on the board to drop a new note. Drag by the header.
           </p>
@@ -70,6 +70,13 @@ function StickyBoard() {
               onDelete={() => del.mutate(n.id)}
             />
           ))}
+          {notes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-4 text-center text-sm text-muted-foreground backdrop-blur">
+                Double-click anywhere to drop your first note ✨
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -97,7 +104,7 @@ function Note({
       if (dragging) {
         setPos({ x: s.px + (e.clientX - s.mx), y: s.py + (e.clientY - s.my) });
       } else {
-        setSize({ w: Math.max(160, s.w + (e.clientX - s.mx)), h: Math.max(140, s.h + (e.clientY - s.my)) });
+        setSize({ w: Math.max(180, s.w + (e.clientX - s.mx)), h: Math.max(160, s.h + (e.clientY - s.my)) });
       }
     };
     const onUp = () => {
@@ -125,69 +132,96 @@ function Note({
     setResizing(true);
   };
 
+  const active = noteColor(note.color);
+
   return (
     <div
       data-sticky-note
       onDoubleClick={(e) => e.stopPropagation()}
       className={cn(
-        "group absolute rounded-xl shadow-note transition-shadow",
-        dragging && "cursor-grabbing shadow-2xl",
+        "group absolute overflow-hidden rounded-2xl shadow-note ring-1 ring-black/10 transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-15px_oklch(0_0_0/0.7)]",
+        dragging && "cursor-grabbing !shadow-2xl scale-[1.02] rotate-[-0.5deg]",
       )}
       style={{
         left: pos.x, top: pos.y, width: size.w, height: size.h,
-        background: noteColorCss(note.color),
+        background: noteGradient(note.color),
       }}
     >
+      {/* soft top sheen */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-10"
+        style={{ background: "linear-gradient(180deg, oklch(1 0 0 / 0.25), transparent)" }}
+      />
+      {/* pin */}
+      {note.pinned && (
+        <div className="pointer-events-none absolute -top-1.5 left-1/2 -translate-x-1/2">
+          <div className="h-3 w-3 rounded-full bg-gradient-to-b from-rose-400 to-rose-700 shadow-[0_2px_4px_oklch(0_0_0/0.4)]" />
+        </div>
+      )}
+
       <div
         onMouseDown={startDrag}
-        className="flex h-7 cursor-grab items-center justify-between rounded-t-xl px-2 text-clay/80"
+        className="relative flex h-8 cursor-grab items-center justify-between px-2.5 text-black/70"
       >
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           {NOTE_COLORS.map((c) => (
             <button
               key={c.value}
               onClick={(e) => { e.stopPropagation(); onChange({ color: c.value }); }}
               className={cn(
-                "h-3 w-3 rounded-full border border-clay/30 transition-transform",
-                note.color === c.value && "scale-125 ring-1 ring-lagoon",
+                "h-2.5 w-2.5 rounded-full border border-black/20 transition-transform hover:scale-125",
+                note.color === c.value && "ring-2 ring-black/40 ring-offset-1 ring-offset-transparent scale-110",
               )}
-              style={{ background: c.css }}
-              title={c.meaning}
+              style={{ background: `linear-gradient(135deg, ${c.from}, ${c.to})` }}
+              title={`${c.name} — ${c.meaning}`}
             />
           ))}
         </div>
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); onChange({ pinned: !note.pinned }); }}
-            className={cn("rounded p-1 hover:bg-black/5", note.pinned && "text-lagoon")}
+            className={cn(
+              "rounded-md p-1 transition hover:bg-black/10",
+              note.pinned && "text-rose-700",
+            )}
             title="Pin"
           >
-            <Pin className="h-3.5 w-3.5" />
+            <Pin className="h-3.5 w-3.5" fill={note.pinned ? "currentColor" : "none"} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded p-1 hover:bg-black/5" title="Delete">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="rounded-md p-1 transition hover:bg-black/10 hover:text-rose-700"
+            title="Delete"
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
+
       <textarea
         defaultValue={note.content ?? ""}
         onBlur={(e) => {
           if (e.target.value !== note.content) onChange({ content: e.target.value });
         }}
         placeholder="Type your note…"
-        className="h-[calc(100%-28px)] w-full resize-none rounded-b-xl bg-transparent px-3 pb-3 pt-1 text-sm text-lagoon placeholder:text-clay/60 focus:outline-none"
+        className="relative h-[calc(100%-32px)] w-full resize-none bg-transparent px-4 pb-4 pt-1 font-display text-[15px] leading-relaxed text-black/85 placeholder:font-sans placeholder:text-black/40 focus:outline-none"
       />
+
+      {/* accent corner */}
+      <div
+        className="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full opacity-40 blur-2xl"
+        style={{ background: active.to }}
+      />
+
       <div
         onMouseDown={startResize}
         className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize"
         style={{
-          background:
-            "linear-gradient(135deg, transparent 50%, oklch(0.4 0.05 60 / 0.35) 50%)",
-          borderBottomRightRadius: 12,
+          background: "linear-gradient(135deg, transparent 50%, oklch(0 0 0 / 0.25) 50%)",
+          borderBottomRightRadius: 16,
         }}
       />
     </div>
   );
 }
-
-export { X };
