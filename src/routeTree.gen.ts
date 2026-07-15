@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedStickyRouteImport } from './routes/_authenticated/sticky'
 import { Route as AuthenticatedNotebooksRouteImport } from './routes/_authenticated/notebooks'
+import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedArchiveRouteImport } from './routes/_authenticated/archive'
@@ -54,6 +55,11 @@ const AuthenticatedNotebooksRoute = AuthenticatedNotebooksRouteImport.update({
   path: '/notebooks',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/archive': typeof AuthenticatedArchiveRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/expenses': typeof AuthenticatedExpensesRoute
   '/notebooks': typeof AuthenticatedNotebooksRoute
   '/sticky': typeof AuthenticatedStickyRoute
   '/tasks': typeof AuthenticatedTasksRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/archive': typeof AuthenticatedArchiveRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/expenses': typeof AuthenticatedExpensesRoute
   '/notebooks': typeof AuthenticatedNotebooksRoute
   '/sticky': typeof AuthenticatedStickyRoute
   '/tasks': typeof AuthenticatedTasksRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/_authenticated/archive': typeof AuthenticatedArchiveRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
   '/_authenticated/notebooks': typeof AuthenticatedNotebooksRoute
   '/_authenticated/sticky': typeof AuthenticatedStickyRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/archive'
     | '/calendar'
     | '/dashboard'
+    | '/expenses'
     | '/notebooks'
     | '/sticky'
     | '/tasks'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/archive'
     | '/calendar'
     | '/dashboard'
+    | '/expenses'
     | '/notebooks'
     | '/sticky'
     | '/tasks'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/_authenticated/archive'
     | '/_authenticated/calendar'
     | '/_authenticated/dashboard'
+    | '/_authenticated/expenses'
     | '/_authenticated/notebooks'
     | '/_authenticated/sticky'
     | '/_authenticated/tasks'
@@ -200,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotebooksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/expenses': {
+      id: '/_authenticated/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof AuthenticatedExpensesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -228,6 +247,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedArchiveRoute: typeof AuthenticatedArchiveRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
   AuthenticatedNotebooksRoute: typeof AuthenticatedNotebooksRoute
   AuthenticatedStickyRoute: typeof AuthenticatedStickyRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
@@ -237,6 +257,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedArchiveRoute: AuthenticatedArchiveRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
   AuthenticatedNotebooksRoute: AuthenticatedNotebooksRoute,
   AuthenticatedStickyRoute: AuthenticatedStickyRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
