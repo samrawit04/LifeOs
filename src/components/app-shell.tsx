@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   StickyNote,
@@ -12,6 +12,8 @@ import {
   LogOut,
   Menu,
   Sparkles,
+  Wallet,
+  PanelLeftClose,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -24,14 +26,34 @@ const NAV = [
   { to: "/notebooks", label: "Notebooks", icon: NotebookText },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
+  { to: "/expenses", label: "Expenses", icon: Wallet },
   { to: "/archive", label: "Archive", icon: Archive },
 ] as const;
 
+const STORAGE_KEY = "lifeos.sidebar.open";
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+  // Single open/closed flag used on all breakpoints. Default open on desktop.
+  const [open, setOpen] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Hydrate from localStorage after mount to avoid SSR mismatch.
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) setOpen(saved === "1");
+    else setOpen(window.innerWidth >= 1024);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
+  }, [open]);
+
+  // Close sidebar on route change on small screens
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) setOpen(false);
+  }, [pathname]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -40,10 +62,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
+      {/* Floating toggle — always visible, works on any breakpoint */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Hide sidebar" : "Show sidebar"}
+        className={cn(
+          "fixed top-4 z-50 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-background/70 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary",
+          open ? "left-[17rem]" : "left-4",
+        )}
+      >
+        {open ? <PanelLeftClose className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+      </button>
+
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border transition-transform lg:relative lg:translate-x-0",
-          "bg-sidebar/70 backdrop-blur-xl",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar/70 backdrop-blur-xl transition-transform duration-300",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -71,14 +104,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="relative mt-4 flex-1 space-y-1 px-3">
+        <nav className="relative mt-4 flex-1 space-y-1 overflow-y-auto px-3">
           {NAV.map(({ to, label, icon: Icon }) => {
             const active = pathname === to || pathname.startsWith(to + "/");
             return (
               <Link
                 key={to}
                 to={to}
-                onClick={() => setOpen(false)}
                 className={cn(
                   "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                   active
@@ -120,19 +152,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl lg:hidden">
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-lg p-2 text-foreground hover:bg-white/5"
-            aria-label="Toggle sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="font-display text-lg text-gradient-indigo">LifeOS</span>
-        </header>
-
-        <main className="min-w-0 flex-1">{children}</main>
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col transition-[margin] duration-300",
+          open ? "lg:ml-64" : "lg:ml-0",
+        )}
+      >
+        <main className="min-w-0 flex-1 pt-16 lg:pt-0">{children}</main>
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
