@@ -54,12 +54,12 @@ function Notebooks() {
 
   // Filter folders at the current navigation level
   const currentFolders = useMemo(() => {
-    return folders.filter((f) => f.parent_folder_id === selectedFolderId);
+    return folders.filter((f) => (f.parent_folder_id ?? null) === selectedFolderId);
   }, [folders, selectedFolderId]);
 
   // Filter pages inside the active folder
   const pages = useMemo(
-    () => items.filter((i) => i.type === "notebook_page" && !i.archived && i.folder_id === selectedFolderId),
+    () => items.filter((i) => i.type === "notebook_page" && !i.archived && (i.folder_id ?? null) === selectedFolderId),
     [items, selectedFolderId],
   );
 
@@ -72,7 +72,7 @@ function Notebooks() {
       const folder = folders.find((f) => f.id === currentId);
       if (folder) {
         path.unshift(folder);
-        currentId = folder.parent_folder_id;
+        currentId = folder.parent_folder_id ?? null;
       } else {
         break;
       }
