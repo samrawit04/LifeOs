@@ -1,13 +1,68 @@
-import type { Database } from "@/integrations/supabase/types";
+export interface Item {
+  id: string;
+  user_id: string;
+  type: "sticky" | "notebook_page" | "task" | "event";
+  title: string | null;
+  content: string | null;
+  folder_id: string | null;
+  color: string | null;
+  tags: string[];
+  due_date: string | null;
+  event_date: string | null;
+  pos_x: number | null;
+  pos_y: number | null;
+  width: number | null;
+  height: number | null;
+  priority: string | null;
+  completed: boolean;
+  pinned: boolean;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-export type Item = Database["public"]["Tables"]["items"]["Row"];
-export type ItemInsert = Database["public"]["Tables"]["items"]["Insert"];
-export type ItemUpdate = Database["public"]["Tables"]["items"]["Update"];
-export type Folder = Database["public"]["Tables"]["folders"]["Row"];
-export type FolderInsert = Database["public"]["Tables"]["folders"]["Insert"];
-export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
-export type ExpenseInsert = Database["public"]["Tables"]["expenses"]["Insert"];
-export type ExpenseUpdate = Database["public"]["Tables"]["expenses"]["Update"];
+export type ItemInsert = Omit<Partial<Item>, "id" | "user_id" | "created_at" | "updated_at"> & {
+  type: Item["type"];
+};
+
+export type ItemUpdate = Partial<ItemInsert> & {
+  clearFolderId?: boolean;
+  clearDueDate?: boolean;
+  clearEventDate?: boolean;
+};
+
+export interface Folder {
+  id: string;
+  user_id: string;
+  name: string;
+  parent_folder_id: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FolderInsert = Omit<Partial<Folder>, "id" | "user_id" | "created_at" | "updated_at"> & {
+  name: string;
+};
+
+export interface Expense {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  category: string;
+  note: string | null;
+  occurred_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ExpenseInsert = Omit<Partial<Expense>, "id" | "user_id" | "created_at" | "updated_at"> & {
+  amount: number;
+  category: string;
+};
+
+export type ExpenseUpdate = Partial<ExpenseInsert>;
 
 /**
  * Sticky-note palette — soft, painterly pastels. Values are stable slugs

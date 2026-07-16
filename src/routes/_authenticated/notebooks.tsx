@@ -9,6 +9,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/notebooks")({
   component: Notebooks,
@@ -28,11 +45,40 @@ function Notebooks() {
   const [selectedPage, setSelectedPage] = useState<Item | null>(null);
   const [newName, setNewName] = useState("");
 
-  const tree = useMemo(() => buildTree(folders), [folders]);
+  // Reusable popups state
+  const [createSubFolderParentId, setCreateSubFolderParentId] = useState<string | null>(null);
+  const [createSubFolderName, setCreateSubFolderName] = useState("");
+  const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
+  const [renameFolderName, setRenameFolderName] = useState("");
+  const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
+
+  // Filter folders at the current navigation level
+  const currentFolders = useMemo(() => {
+    return folders.filter((f) => f.parent_folder_id === selectedFolderId);
+  }, [folders, selectedFolderId]);
+
+  // Filter pages inside the active folder
   const pages = useMemo(
     () => items.filter((i) => i.type === "notebook_page" && !i.archived && i.folder_id === selectedFolderId),
     [items, selectedFolderId],
   );
+
+  // Calculate breadcrumbs path for navigation
+  const breadcrumbs = useMemo(() => {
+    if (!selectedFolderId) return [];
+    const path: Folder[] = [];
+    let currentId: string | null = selectedFolderId;
+    while (currentId) {
+      const folder = folders.find((f) => f.id === currentId);
+      if (folder) {
+        path.unshift(folder);
+        currentId = folder.parent_folder_id;
+      } else {
+        break;
+      }
+    }
+    return path;
+  }, [folders, selectedFolderId]);
 
   const addRoot = () => {
     if (!newName.trim()) return;
@@ -48,152 +94,317 @@ function Notebooks() {
     );
   };
 
+  const handleCreateSubFolder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createSubFolderName.trim() || !createSubFolderParentId) return;
+    createFolder.mutate(
+      { name: createSubFolderName.trim(), parent_folder_id: createSubFolderParentId },
+      {
+        onSuccess: () => {
+          setCreateSubFolderParentId(null);
+          setCreateSubFolderName("");
+        },
+        onError: (err) => toast.error(err.message),
+      }
+    );
+  };
+
+  const handleRenameFolder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameFolderName.trim() || !renameFolderId) return;
+    updateFolder.mutate(
+      { id: renameFolderId, patch: { name: renameFolderName.trim() } },
+      {
+        onSuccess: () => {
+          setRenameFolderId(null);
+          setRenameFolderName("");
+        },
+        onError: (err) => toast.error(err.message),
+      }
+    );
+  };
+
+  const handleDeleteFolder = () => {
+    if (!deleteFolderId) return;
+    deleteFolder.mutate(deleteFolderId, {
+      onSuccess: () => {
+        if (selectedFolderId === deleteFolderId) {
+          const deletedFolder = folders.find((f) => f.id === deleteFolderId);
+          setSelectedFolderId(deletedFolder?.parent_folder_id || null);
+        }
+        setDeleteFolderId(null);
+      },
+      onError: (err) => toast.error(err.message),
+    });
+  };
+
   return (
-    <div className="flex h-[calc(100vh-56px)] lg:h-screen">
-      <aside className="w-72 shrink-0 border-r bg-sidebar/70 p-4">
-        <div className="mb-4 flex gap-2">
-          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New notebook…" onKeyDown={(e) => e.key === "Enter" && addRoot()} />
-          <Button size="icon" onClick={addRoot} className="bg-lagoon text-cream hover:bg-lagoon/90"><FolderPlus className="h-4 w-4" /></Button>
-        </div>
-        <div className="space-y-0.5">
-          {tree.length === 0 && (
-            <p className="rounded-lg bg-muted/50 px-3 py-4 text-center text-xs text-muted-foreground">
-              No notebooks yet.
-            </p>
-          )}
-          {tree.map((n) => (
-            <FolderNode
-              key={n.id}
-              node={n}
-              level={0}
-              selectedId={selectedFolderId}
-              onSelect={setSelectedFolderId}
-              onAddChild={(parentId) => {
-                const name = prompt("New notebook name");
-                if (name) createFolder.mutate({ name, parent_folder_id: parentId });
-              }}
-              onRename={(id, name) => updateFolder.mutate({ id, patch: { name } })}
-              onDelete={(id) => { if (confirm("Delete this notebook and all its pages?")) deleteFolder.mutate(id); }}
-            />
-          ))}
-        </div>
-      </aside>
+    <div className="flex flex-col h-[calc(100vh-56px)] lg:h-screen bg-cozy-grain">
+      {/* Breadcrumb Header Row */}
+      <header className="flex items-center justify-between border-b px-6 py-4 bg-background/30 backdrop-blur-md">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-none py-1">
+          <button
+            onClick={() => {
+              setSelectedFolderId(null);
+              setSelectedPage(null);
+            }}
+            className={cn(
+              "font-display text-lg font-semibold hover:text-primary transition-colors",
+              selectedFolderId === null ? "text-lagoon" : "text-muted-foreground"
+            )}
+          >
+            Notebooks
+          </button>
+          
+          {breadcrumbs.map((folder, index) => {
+            const isLast = index === breadcrumbs.length - 1;
+            return (
+              <div key={folder.id} className="flex items-center gap-2">
+                <ChevronRight className="h-4 w-4 text-muted-foreground/45" />
+                <button
+                  disabled={isLast && !selectedPage}
+                  onClick={() => {
+                    setSelectedFolderId(folder.id);
+                    setSelectedPage(null);
+                  }}
+                  className={cn(
+                    "font-display text-lg font-semibold hover:text-primary transition-colors",
+                    (isLast && !selectedPage) ? "text-lagoon" : "text-muted-foreground"
+                  )}
+                >
+                  {folder.name}
+                </button>
+              </div>
+            );
+          })}
 
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b px-6 py-4">
-          <div>
-            <h1 className="font-display text-2xl text-lagoon">
-              {selectedFolderId ? folders.find((f) => f.id === selectedFolderId)?.name : "Notebooks"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {selectedFolderId ? `${pages.length} page${pages.length === 1 ? "" : "s"}` : "Choose a notebook to see pages"}
-            </p>
+          {selectedPage && (
+            <div className="flex items-center gap-2">
+              <ChevronRight className="h-4 w-4 text-muted-foreground/45" />
+              <span className="font-display text-lg font-semibold text-lagoon max-w-[120px] sm:max-w-[200px] truncate">
+                {selectedPage.title || "Untitled"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Action bar at the right of Header */}
+        {!selectedPage && (
+          <div className="flex items-center gap-2 shrink-0">
+            {selectedFolderId === null ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="New notebook…"
+                  className="h-9 w-40 sm:w-48 border-white/10 bg-white/[0.03] text-sm"
+                  onKeyDown={(e) => e.key === "Enter" && addRoot()}
+                />
+                <Button onClick={addRoot} size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90">
+                  <FolderPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">Add Notebook</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    setCreateSubFolderParentId(selectedFolderId);
+                    setCreateSubFolderName("");
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/10 bg-white/[0.03] hover:bg-white/[0.08]"
+                >
+                  <FolderPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">Sub-notebook</span>
+                </Button>
+                <Button onClick={addPage} size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90">
+                  <Plus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">New page</span>
+                </Button>
+              </div>
+            )}
           </div>
-          {selectedFolderId && (
-            <Button onClick={addPage} className="bg-lagoon text-cream hover:bg-lagoon/90"><Plus className="h-4 w-4" /> New page</Button>
-          )}
-        </header>
+        )}
+      </header>
 
+      {/* Main content body area */}
+      <div className="flex-1 overflow-auto">
         {selectedPage ? (
           <PageEditor
             key={selectedPage.id}
             page={selectedPage}
             onClose={() => setSelectedPage(null)}
             onChange={(patch) => updateItem.mutate({ id: selectedPage.id, patch })}
-            onArchive={() => { updateItem.mutate({ id: selectedPage.id, patch: { archived: true } }); setSelectedPage(null); }}
-            onDelete={() => { deleteItem.mutate(selectedPage.id); setSelectedPage(null); }}
+            onArchive={() => {
+              updateItem.mutate({ id: selectedPage.id, patch: { archived: true } });
+              setSelectedPage(null);
+            }}
+            onDelete={() => {
+              deleteItem.mutate(selectedPage.id);
+              setSelectedPage(null);
+            }}
           />
-        ) : selectedFolderId ? (
-          <div className="grid flex-1 grid-cols-1 gap-3 overflow-auto p-6 sm:grid-cols-2 lg:grid-cols-3">
-            {pages.length === 0 ? (
-              <div className="col-span-full rounded-2xl border bg-card p-10 text-center text-muted-foreground">
-                No pages here yet. Start writing.
+        ) : (
+          <div className="p-6 max-w-7xl mx-auto space-y-8">
+            {/* Folders/Notebooks Section */}
+            {(currentFolders.length > 0 || selectedFolderId === null) && (
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                  {selectedFolderId === null ? "My Notebooks" : "Sub-notebooks"}
+                </h2>
+                
+                {currentFolders.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-muted-foreground bg-white/[0.01]">
+                    <FolderIcon className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <p className="text-sm">No notebooks yet.</p>
+                    <p className="text-xs mt-1">Create one using the input field above.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {currentFolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        onClick={() => setSelectedFolderId(folder.id)}
+                        className="group relative flex items-center justify-between p-4 bg-card/45 backdrop-blur-md border border-white/5 rounded-2xl hover:bg-card hover:border-primary/20 hover:shadow-soft transition-all duration-300 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color || "#06b6d4" }} />
+                          <span className="truncate font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                            {folder.name}
+                          </span>
+                        </div>
+                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setRenameFolderId(folder.id);
+                              setRenameFolderName(folder.name);
+                            }}
+                            className="rounded p-1 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+                            title="Rename"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteFolderId(folder.id)}
+                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              pages.map((p) => (
-                <button key={p.id} onClick={() => setSelectedPage(p)} className="rounded-2xl border bg-card p-4 text-left shadow-soft transition hover:shadow-note">
-                  <div className="flex items-center gap-2 text-clay"><FileText className="h-4 w-4" /><span className="text-xs uppercase tracking-wider">Page</span></div>
-                  <h3 className="mt-2 truncate font-display text-lg text-lagoon">{p.title || "Untitled"}</h3>
-                  <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{p.content}</p>
-                  <p className="mt-3 text-xs text-muted-foreground">Edited {format(new Date(p.updated_at), "MMM d")}</p>
-                </button>
-              ))
+            )}
+
+            {/* Pages Section */}
+            {selectedFolderId !== null && (
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                  Pages
+                </h2>
+                
+                {pages.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-muted-foreground bg-white/[0.01]">
+                    <FileText className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <p className="text-sm">No pages here yet.</p>
+                    <Button onClick={addPage} size="sm" variant="link" className="mt-2 text-lagoon hover:text-lagoon/90 font-medium">
+                      Create your first page
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pages.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedPage(p)}
+                        className="rounded-2xl border border-white/5 bg-card/45 p-5 text-left shadow-soft transition-all duration-300 hover:shadow-note hover:bg-card hover:border-primary/20"
+                      >
+                        <div className="flex items-center gap-2 text-clay">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-xs uppercase tracking-wider font-semibold">Page</span>
+                        </div>
+                        <h3 className="mt-3 truncate font-display text-lg text-lagoon font-semibold">{p.title || "Untitled"}</h3>
+                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground h-12 leading-relaxed">{p.content || "No content yet..."}</p>
+                        <p className="mt-4 text-xs text-muted-foreground/70">Edited {format(new Date(p.updated_at), "MMM d, yyyy")}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        ) : (
-          <div className="flex flex-1 items-center justify-center p-10 text-center">
-            <div className="max-w-sm">
-              <FolderIcon className="mx-auto h-10 w-10 text-blossom" />
-              <h2 className="mt-3 font-display text-xl text-lagoon">Pick a notebook</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Create nested notebooks in the sidebar to keep long-form thoughts organized.
-              </p>
-            </div>
-          </div>
         )}
-      </section>
-    </div>
-  );
-}
-
-type Node = Folder & { children: Node[] };
-function buildTree(folders: Folder[]): Node[] {
-  const map = new Map<string, Node>();
-  folders.forEach((f) => map.set(f.id, { ...f, children: [] }));
-  const roots: Node[] = [];
-  map.forEach((n) => {
-    if (n.parent_folder_id && map.has(n.parent_folder_id)) {
-      map.get(n.parent_folder_id)!.children.push(n);
-    } else {
-      roots.push(n);
-    }
-  });
-  return roots;
-}
-
-function FolderNode({
-  node, level, selectedId, onSelect, onAddChild, onRename, onDelete,
-}: {
-  node: Node; level: number; selectedId: string | null;
-  onSelect: (id: string) => void;
-  onAddChild: (parentId: string) => void;
-  onRename: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const active = selectedId === node.id;
-  return (
-    <div>
-      <div
-        className={cn(
-          "group flex items-center gap-1 rounded-lg pr-1 text-sm",
-          active && "bg-lagoon/10",
-        )}
-        style={{ paddingLeft: level * 12 + 4 }}
-      >
-        <button onClick={() => setOpen(!open)} className="p-1 text-muted-foreground">
-          <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />
-        </button>
-        <button
-          onClick={() => onSelect(node.id)}
-          className={cn("flex flex-1 items-center gap-2 rounded-md px-1 py-1 text-left", active ? "font-semibold text-lagoon" : "text-sidebar-foreground hover:text-lagoon")}
-        >
-          <FolderIcon className="h-3.5 w-3.5" style={{ color: node.color }} />
-          <span className="truncate">{node.name}</span>
-        </button>
-        <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-          <button onClick={() => onAddChild(node.id)} className="rounded p-1 text-muted-foreground hover:bg-accent/40" title="Add sub-notebook"><FolderPlus className="h-3.5 w-3.5" /></button>
-          <button onClick={() => { const n = prompt("Rename", node.name); if (n) onRename(node.id, n); }} className="rounded p-1 text-muted-foreground hover:bg-accent/40" title="Rename"><Pencil className="h-3.5 w-3.5" /></button>
-          <button onClick={() => onDelete(node.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
-        </div>
       </div>
-      {open && node.children.length > 0 && (
-        <div>
-          {node.children.map((c) => (
-            <FolderNode key={c.id} node={c} level={level + 1} selectedId={selectedId} onSelect={onSelect} onAddChild={onAddChild} onRename={onRename} onDelete={onDelete} />
-          ))}
-        </div>
-      )}
+
+      {/* Add Sub-Notebook Dialog */}
+      <Dialog open={createSubFolderParentId !== null} onOpenChange={(open) => !open && setCreateSubFolderParentId(null)}>
+        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[425px]">
+          <form onSubmit={handleCreateSubFolder}>
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl text-lagoon">New notebook name</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={createSubFolderName}
+                onChange={(e) => setCreateSubFolderName(e.target.value)}
+                placeholder="Notebook name…"
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreateSubFolderParentId(null)} className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-lagoon text-cream hover:bg-lagoon/90">Create</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Notebook Dialog */}
+      <Dialog open={renameFolderId !== null} onOpenChange={(open) => !open && setRenameFolderId(null)}>
+        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[425px]">
+          <form onSubmit={handleRenameFolder}>
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl text-lagoon">Rename notebook</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={renameFolderName}
+                onChange={(e) => setRenameFolderName(e.target.value)}
+                placeholder="New name…"
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenameFolderId(null)} className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-lagoon text-cream hover:bg-lagoon/90">Rename</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Notebook Dialog */}
+      <AlertDialog open={deleteFolderId !== null} onOpenChange={(open) => !open && setDeleteFolderId(null)}>
+        <AlertDialogContent className="border-white/10 bg-[#1e1a1d] text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-xl text-lagoon">Delete this notebook?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This action will delete this notebook and all its pages. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2">
+            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/95">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

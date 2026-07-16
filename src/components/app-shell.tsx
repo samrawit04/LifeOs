@@ -15,7 +15,7 @@ import {
   Wallet,
   PanelLeftClose,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/integrations/api/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
@@ -56,23 +56,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await apiClient.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
-      {/* Floating toggle — always visible, works on any breakpoint */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Hide sidebar" : "Show sidebar"}
-        className={cn(
-          "fixed top-4 z-50 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-background/70 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary",
-          open ? "left-[17rem]" : "left-4",
-        )}
-      >
-        {open ? <PanelLeftClose className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </button>
+      {/* Floating open button — only visible when sidebar is closed */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Show sidebar"
+          className="fixed left-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-background/70 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+      )}
 
       <aside
         className={cn(
@@ -91,6 +90,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="font-display text-lg font-semibold text-gradient-indigo">LifeOS</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
+          {/* Close button — lives inside the sidebar header, never overlaps page content */}
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Hide sidebar"
+            className="ml-auto grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="relative px-3">
@@ -154,11 +161,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div
         className={cn(
-          "flex min-w-0 flex-1 flex-col transition-[margin] duration-300",
+          "flex min-w-0 flex-1 flex-col transition-[margin,padding] duration-300",
           open ? "lg:ml-64" : "lg:ml-0",
         )}
       >
-        <main className="min-w-0 flex-1 pt-16 lg:pt-0">{children}</main>
+        <main
+          className={cn(
+            "min-w-0 flex-1 pt-16 lg:pt-0 transition-[padding] duration-300",
+            !open && "pl-14",
+          )}
+        >
+          {children}
+        </main>
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />

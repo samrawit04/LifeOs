@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/integrations/api/client";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, StickyNote, NotebookText, CheckCircle2, Sparkles, ArrowRight } from "lucide-react";
 
@@ -14,9 +14,9 @@ function Landing() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    apiClient.auth.getUser().then((user) => {
       if (!mounted) return;
-      if (data.session) {
+      if (user) {
         navigate({ to: "/dashboard", replace: true });
       } else {
         setChecked(true);

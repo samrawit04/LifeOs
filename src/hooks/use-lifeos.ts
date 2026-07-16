@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/integrations/api/client";
 import type { Folder, FolderInsert, Item, ItemInsert, ItemUpdate } from "@/lib/lifeos-types";
 
 const ITEMS_KEY = ["items"] as const;
@@ -9,12 +9,7 @@ export function useItems() {
   return useQuery({
     queryKey: ITEMS_KEY,
     queryFn: async (): Promise<Item[]> => {
-      const { data, error } = await supabase
-        .from("items")
-        .select("*")
-        .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      return apiClient.get<Item[]>("/api/items");
     },
   });
 }
@@ -23,31 +18,16 @@ export function useFolders() {
   return useQuery({
     queryKey: FOLDERS_KEY,
     queryFn: async (): Promise<Folder[]> => {
-      const { data, error } = await supabase.from("folders").select("*").order("name");
-      if (error) throw error;
-      return data ?? [];
+      return apiClient.get<Folder[]>("/api/folders");
     },
   });
-}
-
-async function getUserId(): Promise<string> {
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) throw new Error("Not signed in");
-  return data.user.id;
 }
 
 export function useCreateItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Omit<ItemInsert, "user_id">) => {
-      const user_id = await getUserId();
-      const { data, error } = await supabase
-        .from("items")
-        .insert({ ...input, user_id })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return apiClient.post<Item>("/api/items", input);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ITEMS_KEY }),
   });
@@ -57,14 +37,20 @@ export function useUpdateItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: ItemUpdate }) => {
-      const { data, error } = await supabase
-        .from("items")
-        .update(patch)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const apiPatch = { ...patch } as any;
+      
+      // Map null values to explicit clear flags for EF Core DTO compatibility
+      if (patch.folder_id === null) {
+        apiPatch.clearFolderId = true;
+      }
+      if (patch.due_date === null) {
+        apiPatch.clearDueDate = true;
+      }
+      if (patch.event_date === null) {
+        apiPatch.clearEventDate = true;
+      }
+
+      return apiClient.patch<Item>(`/api/items/${id}`, apiPatch);
     },
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: ITEMS_KEY });
@@ -88,8 +74,7 @@ export function useDeleteItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("items").delete().eq("id", id);
-      if (error) throw error;
+      await apiClient.delete(`/api/items/${id}`);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ITEMS_KEY }),
   });
@@ -99,14 +84,7 @@ export function useCreateFolder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Omit<FolderInsert, "user_id">) => {
-      const user_id = await getUserId();
-      const { data, error } = await supabase
-        .from("folders")
-        .insert({ ...input, user_id })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return apiClient.post<Folder>("/api/folders", input);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FOLDERS_KEY }),
   });
@@ -116,8 +94,7 @@ export function useUpdateFolder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Folder> }) => {
-      const { error } = await supabase.from("folders").update(patch).eq("id", id);
-      if (error) throw error;
+      await apiClient.patch(`/api/folders/${id}`, patch);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FOLDERS_KEY }),
   });
@@ -127,8 +104,7 @@ export function useDeleteFolder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("folders").delete().eq("id", id);
-      if (error) throw error;
+      await apiClient.delete(`/api/folders/${id}`);
       await qc.invalidateQueries({ queryKey: ITEMS_KEY });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FOLDERS_KEY }),
