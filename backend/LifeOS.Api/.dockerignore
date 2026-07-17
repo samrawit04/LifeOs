@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# Build outputs (re-built inside Docker)
+bin/
+obj/
+
+# IDE / editor folders
+.vscode/
+.vs/
+*.user
+
+# Secrets / local config
+appsettings.Development.json
+.env
+
+# Docker itself
+Dockerfile
+.dockerignore
