@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, Outlet, useChildMatches } from "@tanstack/react-router";
 import { z } from "zod";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { useEffect, useState } from "react";
@@ -30,6 +30,12 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const childMatches = useChildMatches();
+
+  // If we're on a child route (e.g. /auth/callback), render it instead of the login form
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
 
   useEffect(() => {
     apiClient.auth.getUser().then((user) => {

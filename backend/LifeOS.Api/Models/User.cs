@@ -11,4 +11,5 @@ public class User
     public ICollection<Folder> Folders { get; set; } = [];
     public ICollection<Item> Items { get; set; } = [];
     public ICollection<Expense> Expenses { get; set; } = [];
+    public ICollection<Playlist> Playlists { get; set; } = [];
 }

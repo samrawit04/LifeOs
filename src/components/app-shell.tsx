@@ -14,12 +14,14 @@ import {
   Sparkles,
   Wallet,
   PanelLeftClose,
+  Music,
 } from "lucide-react";
 import { apiClient } from "@/integrations/api/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
 import { AiChat } from "@/components/ai-chat";
+import { MiniPlayer } from "@/components/mini-player";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,6 +30,7 @@ const NAV = [
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/expenses", label: "Expenses", icon: Wallet },
+  { to: "/music", label: "Music", icon: Music },
   { to: "/archive", label: "Archive", icon: Archive },
 ] as const;
 
@@ -178,6 +181,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <AiChat />
+      <MiniPlayer />
     </div>
   );
 }

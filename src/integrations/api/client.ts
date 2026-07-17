@@ -8,6 +8,27 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface Playlist {
+  id: string;
+  userId: string;
+  name: string;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaylistItem {
+  id: string;
+  playlistId: string;
+  position: number;
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  channelName: string;
+  durationSeconds: number;
+  addedAt: string;
+}
+
 class ApiClient {
   private get baseUrl() {
     return import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -87,6 +108,43 @@ class ApiClient {
   delete<T>(path: string): Promise<T> {
     return this.request<T>(path, { method: "DELETE" });
   }
+
+  // Playlists Operations
+  playlists = {
+    getAll: (): Promise<Playlist[]> => {
+      return this.get<Playlist[]>("/api/playlists");
+    },
+    create: (name: string): Promise<Playlist> => {
+      return this.post<Playlist>("/api/playlists", { name });
+    },
+    rename: (id: string, name: string): Promise<Playlist> => {
+      return this.patch<Playlist>(`/api/playlists/${id}`, { name });
+    },
+    delete: (id: string): Promise<void> => {
+      return this.delete<void>(`/api/playlists/${id}`);
+    },
+    getItems: (id: string): Promise<PlaylistItem[]> => {
+      return this.get<PlaylistItem[]>(`/api/playlists/${id}/items`);
+    },
+    addItem: (
+      id: string,
+      item: {
+        videoId: string;
+        title: string;
+        thumbnail: string;
+        channelName: string;
+        durationSeconds: number;
+      }
+    ): Promise<PlaylistItem> => {
+      return this.post<PlaylistItem>(`/api/playlists/${id}/items`, item);
+    },
+    removeItem: (id: string, itemId: string): Promise<void> => {
+      return this.delete<void>(`/api/playlists/${id}/items/${itemId}`);
+    },
+    reorderItems: (id: string, items: { id: string; position: number }[]): Promise<void> => {
+      return this.patch<void>(`/api/playlists/${id}/items/reorder`, { items });
+    },
+  };
 
   // Auth Operations
   auth = {

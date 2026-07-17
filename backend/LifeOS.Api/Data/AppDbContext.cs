@@ -9,6 +9,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Folder> Folders => Set<Folder>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Playlist> Playlists => Set<Playlist>();
+    public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -82,6 +84,35 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             e.HasIndex(ex => new { ex.UserId, ex.OccurredAt });
         });
+
+        // ── Playlist ──────────────────────────────────────────
+        model.Entity<Playlist>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasOne(p => p.User)
+             .WithMany(u => u.Playlists)
+             .HasForeignKey(p => p.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(p => p.Items)
+             .WithOne(pi => pi.Playlist)
+             .HasForeignKey(pi => pi.PlaylistId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(p => p.UserId);
+            e.Property(p => p.Name).HasMaxLength(200).IsRequired();
+        });
+
+        // ── PlaylistItem ───────────────────────────────────────
+        model.Entity<PlaylistItem>(e =>
+        {
+            e.HasKey(pi => pi.Id);
+            e.HasIndex(pi => pi.PlaylistId);
+            e.Property(pi => pi.VideoId).HasMaxLength(20).IsRequired();
+            e.Property(pi => pi.Title).HasMaxLength(500);
+            e.Property(pi => pi.Thumbnail).HasMaxLength(500);
+            e.Property(pi => pi.ChannelName).HasMaxLength(200);
+        });
     }
 
     // Auto-update UpdatedAt on every SaveChanges
@@ -95,6 +126,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 if (entry.Entity is Folder f) f.UpdatedAt = now;
                 if (entry.Entity is Item i) i.UpdatedAt = now;
                 if (entry.Entity is Expense ex) ex.UpdatedAt = now;
+                if (entry.Entity is Playlist p) p.UpdatedAt = now;
             }
         }
         return base.SaveChangesAsync(ct);

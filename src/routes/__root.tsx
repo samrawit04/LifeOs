@@ -126,6 +126,8 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { MusicPlayerProvider } from "@/lib/music-player-context";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -141,8 +143,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster />
+      <MusicPlayerProvider>
+        <Outlet />
+        <Toaster />
+      </MusicPlayerProvider>
     </QueryClientProvider>
   );
 }

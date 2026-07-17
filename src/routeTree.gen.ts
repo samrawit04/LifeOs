@@ -17,6 +17,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedStickyRouteImport } from './routes/_authenticated/sticky'
 import { Route as AuthenticatedNotebooksRouteImport } from './routes/_authenticated/notebooks'
+import { Route as AuthenticatedMusicRouteImport } from './routes/_authenticated/music'
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
@@ -61,6 +62,11 @@ const AuthenticatedNotebooksRoute = AuthenticatedNotebooksRouteImport.update({
   path: '/notebooks',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMusicRoute = AuthenticatedMusicRouteImport.update({
+  id: '/music',
+  path: '/music',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
   id: '/expenses',
   path: '/expenses',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/music': typeof AuthenticatedMusicRoute
   '/notebooks': typeof AuthenticatedNotebooksRoute
   '/sticky': typeof AuthenticatedStickyRoute
   '/tasks': typeof AuthenticatedTasksRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/music': typeof AuthenticatedMusicRoute
   '/notebooks': typeof AuthenticatedNotebooksRoute
   '/sticky': typeof AuthenticatedStickyRoute
   '/tasks': typeof AuthenticatedTasksRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
+  '/_authenticated/music': typeof AuthenticatedMusicRoute
   '/_authenticated/notebooks': typeof AuthenticatedNotebooksRoute
   '/_authenticated/sticky': typeof AuthenticatedStickyRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/expenses'
+    | '/music'
     | '/notebooks'
     | '/sticky'
     | '/tasks'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/expenses'
+    | '/music'
     | '/notebooks'
     | '/sticky'
     | '/tasks'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/dashboard'
     | '/_authenticated/expenses'
+    | '/_authenticated/music'
     | '/_authenticated/notebooks'
     | '/_authenticated/sticky'
     | '/_authenticated/tasks'
@@ -231,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotebooksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/music': {
+      id: '/_authenticated/music'
+      path: '/music'
+      fullPath: '/music'
+      preLoaderRoute: typeof AuthenticatedMusicRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/expenses': {
       id: '/_authenticated/expenses'
       path: '/expenses'
@@ -267,6 +286,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
+  AuthenticatedMusicRoute: typeof AuthenticatedMusicRoute
   AuthenticatedNotebooksRoute: typeof AuthenticatedNotebooksRoute
   AuthenticatedStickyRoute: typeof AuthenticatedStickyRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
@@ -277,6 +297,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
+  AuthenticatedMusicRoute: AuthenticatedMusicRoute,
   AuthenticatedNotebooksRoute: AuthenticatedNotebooksRoute,
   AuthenticatedStickyRoute: AuthenticatedStickyRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
