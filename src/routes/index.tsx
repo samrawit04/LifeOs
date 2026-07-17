@@ -33,17 +33,17 @@ function Landing() {
     <div className="min-h-screen bg-cozy-grain">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.62_0.22_275/0.7)]">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)]">
             <Sparkles className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-semibold text-gradient-indigo">LifeOS</span>
+          <span className="font-display text-xl font-semibold text-gradient-primary">LifeOS</span>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/auth">
             <Button variant="ghost">Sign in</Button>
           </Link>
           <Link to="/auth" search={{ mode: "signup" }}>
-            <Button className="bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.62_0.22_275/0.8)] hover:opacity-95">
+            <Button className="bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.14_160/0.8)] hover:opacity-95">
               Get started
             </Button>
           </Link>
@@ -54,11 +54,11 @@ function Landing() {
         <section className="grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_oklch(0.62_0.22_275/0.9)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_oklch(0.78_0.14_160/0.9)]" />
               A quiet home for your day
             </div>
             <h1 className="mt-5 font-display text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl">
-              <span className="text-gradient-indigo">Sticky notes, notebooks & calendar</span>
+              <span className="text-gradient-primary">Sticky notes, notebooks & calendar</span>
               <span className="text-foreground"> — all under one soft light.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground">
@@ -70,7 +70,7 @@ function Landing() {
               <Link to="/auth" search={{ mode: "signup" }}>
                 <Button
                   size="lg"
-                  className="group bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-[0_20px_50px_-15px_oklch(0.62_0.22_275/0.8)] hover:opacity-95"
+                  className="group bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-[0_20px_50px_-15px_oklch(0.78_0.14_160/0.8)] hover:opacity-95"
                 >
                   Create your workspace
                   <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />

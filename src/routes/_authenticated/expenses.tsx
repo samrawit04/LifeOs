@@ -334,7 +334,7 @@ function ExpensesPage() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-muted-foreground">
             <Wallet className="h-3 w-3 text-primary" /> Money OS
           </div>
-          <h1 className="mt-3 font-display text-4xl text-gradient-indigo">Expenses</h1>
+          <h1 className="mt-3 font-display text-4xl text-gradient-primary">Expenses</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             A simple, calm space to log and analyze your spending.
           </p>
@@ -422,7 +422,7 @@ function ExpensesPage() {
                     className={cn(
                       "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition",
                       category === c.value
-                        ? "border-primary/50 bg-primary/15 text-foreground shadow-[0_0_20px_-6px_oklch(0.62_0.22_275/0.7)]"
+                        ? "border-primary/50 bg-primary/15 text-foreground shadow-[0_0_20px_-6px_oklch(0.78_0.14_160/0.7)]"
                         : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -1029,7 +1029,7 @@ function SummaryTile({
     <div className="glass-card relative overflow-hidden rounded-2xl p-5">
       <div className={cn("pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gradient-to-br blur-2xl", accent)} />
       <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className={cn("mt-2 font-display tabular-nums font-semibold", big ? "text-4xl text-gradient-indigo" : "text-3xl")}>
+      <p className={cn("mt-2 font-display tabular-nums font-semibold", big ? "text-4xl text-gradient-primary" : "text-3xl")}>
         {value.toFixed(2)} {CURRENCY}
       </p>
     </div>

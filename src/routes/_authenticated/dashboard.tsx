@@ -42,7 +42,7 @@ function Dashboard() {
             <Sparkles className="h-3 w-3 text-primary" />
             {format(new Date(), "EEEE · MMMM d, yyyy")}
           </div>
-          <h1 className="mt-4 font-display text-5xl font-semibold leading-tight text-gradient-indigo sm:text-6xl">
+          <h1 className="mt-4 font-display text-5xl font-semibold leading-tight text-gradient-primary sm:text-6xl">
             Good {greeting()}.
           </h1>
           <p className="mt-2 max-w-xl text-base text-muted-foreground">

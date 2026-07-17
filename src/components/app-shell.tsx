@@ -19,6 +19,7 @@ import { apiClient } from "@/integrations/api/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
+import { AiChat } from "@/components/ai-chat";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -83,11 +84,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/15 to-transparent" />
 
         <div className="relative flex h-16 items-center gap-3 px-5">
-          <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-accent font-display text-lg text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.62_0.22_275/0.7)]">
+          <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-accent font-display text-lg text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)]">
             <Sparkles className="h-5 w-5" strokeWidth={2.25} />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg font-semibold text-gradient-indigo">LifeOS</span>
+            <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
           {/* Close button — lives inside the sidebar header, never overlaps page content */}
@@ -126,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 {active && (
-                  <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-primary to-accent shadow-[0_0_12px_oklch(0.62_0.22_275/0.8)]" />
+                  <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-primary to-accent shadow-[0_0_12px_oklch(0.78_0.14_160/0.8)]" />
                 )}
                 <Icon
                   className={cn(
@@ -176,6 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <AiChat />
     </div>
   );
 }

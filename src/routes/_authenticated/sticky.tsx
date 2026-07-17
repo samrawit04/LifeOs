@@ -47,7 +47,7 @@ function StickyBoard() {
     <div className="flex h-[calc(100vh-56px)] flex-col lg:h-screen">
       <header className="flex items-center justify-between border-b border-border/60 bg-background/60 px-6 py-4 backdrop-blur">
         <div>
-          <h1 className="font-display text-2xl text-gradient-indigo">Sticky board</h1>
+          <h1 className="font-display text-2xl text-gradient-primary">Sticky board</h1>
           <p className="text-sm text-muted-foreground">
             Double-click anywhere on the board to drop a new note. Drag by the header.
           </p>
