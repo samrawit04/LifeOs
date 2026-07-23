@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: lifeos-api
+    env: docker
+    dockerfilePath: backend/lifeos.api/Dockerfile
+    dockerContext: backend/lifeos.api
+    plan: free
+    envVars:
+      - key: ConnectionStrings__DefaultConnection
+        value: "Host=ep-noisy-grass-atmsd8mq-pooler.c-9.us-east-1.aws.neon.tech; Database=neondb; Username=neondb_owner; Password=npg_4cwyrlmBpa3t; SSL Mode=Require; Timeout=60;"
+      - key: Jwt__Key
+        value: "SuperSecretLifeOSAuthTokenSecretKey2026!#SecureLongKey32Chars+"
+      - key: Jwt__Issuer
+        value: "LifeOS"
+      - key: Jwt__Audience
+        value: "LifeOS"
+      - key: Jwt__ExpiryDays
+        value: "7"

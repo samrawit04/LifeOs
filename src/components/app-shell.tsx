@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
 import { AiChat } from "@/components/ai-chat";
 import { MiniPlayer } from "@/components/mini-player";
+import { GlobalAudioPlayer } from "@/components/global-audio-player";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -40,8 +41,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Single open/closed flag used on all breakpoints. Default open on desktop.
   const [open, setOpen] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Track mobile vs desktop
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Hydrate from localStorage after mount to avoid SSR mismatch.
   useEffect(() => {
@@ -156,9 +166,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {open && (
+      {open && isMobile && (
         <div
-          className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
       )}
@@ -182,6 +192,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <AiChat />
       <MiniPlayer />
+      <GlobalAudioPlayer />
     </div>
   );
 }
+
+

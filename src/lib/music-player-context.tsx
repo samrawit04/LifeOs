@@ -51,9 +51,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const play = useCallback((video: VideoInfo, queue?: VideoInfo[]) => {
+  const play = useCallback((video: VideoInfo, queue?: VideoInfo[], startIndex?: number) => {
     const q = queue ?? [video];
-    const idx = q.findIndex((v) => v.videoId === video.videoId);
+    const idx = typeof startIndex === "number" ? startIndex : q.findIndex((v) => v.videoId === video.videoId);
     setState({
       currentVideo: video,
       queue: q,
@@ -66,10 +66,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const playPlaylist = useCallback(
     (videos: VideoInfo[], startIndex = 0) => {
       if (!videos.length) return;
-      play(videos[startIndex], videos);
+      const validIdx = Math.max(0, Math.min(startIndex, videos.length - 1));
+      play(videos[validIdx], videos, validIdx);
     },
     [play],
   );
+
 
   const next = useCallback(() => {
     const { queue, currentIndex } = stateRef.current;

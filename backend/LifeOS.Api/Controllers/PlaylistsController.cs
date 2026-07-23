@@ -97,10 +97,17 @@ public class PlaylistsController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
         if (playlist is null) return NotFound();
 
+        var exists = await db.PlaylistItems.AnyAsync(pi => pi.PlaylistId == id && pi.VideoId == req.VideoId);
+        if (exists)
+        {
+            return Conflict(new { message = "Track is already in this playlist" });
+        }
+
         var maxPos = await db.PlaylistItems
             .Where(pi => pi.PlaylistId == id)
             .Select(pi => (int?)pi.Position)
             .MaxAsync() ?? -1;
+
 
         var item = new PlaylistItem
         {

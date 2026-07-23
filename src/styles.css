@@ -163,6 +163,16 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
   h1,
   h2,
   h3,
