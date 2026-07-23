@@ -111,22 +111,57 @@ class ApiClient {
 
   // Playlists Operations
   playlists = {
-    getAll: (): Promise<Playlist[]> => {
-      return this.get<Playlist[]>("/api/playlists");
+    getAll: async (): Promise<Playlist[]> => {
+      const data = await this.get<any[]>("/api/playlists");
+      return data.map((p) => ({
+        id: p.id,
+        userId: p.userId ?? p.user_id,
+        name: p.name,
+        itemCount: p.itemCount ?? p.item_count ?? 0,
+        createdAt: p.createdAt ?? p.created_at,
+        updatedAt: p.updatedAt ?? p.updated_at,
+      }));
     },
-    create: (name: string): Promise<Playlist> => {
-      return this.post<Playlist>("/api/playlists", { name });
+    create: async (name: string): Promise<Playlist> => {
+      const p = await this.post<any>("/api/playlists", { name });
+      return {
+        id: p.id,
+        userId: p.userId ?? p.user_id,
+        name: p.name,
+        itemCount: p.itemCount ?? p.item_count ?? 0,
+        createdAt: p.createdAt ?? p.created_at,
+        updatedAt: p.updatedAt ?? p.updated_at,
+      };
     },
-    rename: (id: string, name: string): Promise<Playlist> => {
-      return this.patch<Playlist>(`/api/playlists/${id}`, { name });
+    rename: async (id: string, name: string): Promise<Playlist> => {
+      const p = await this.patch<any>(`/api/playlists/${id}`, { name });
+      return {
+        id: p.id,
+        userId: p.userId ?? p.user_id,
+        name: p.name,
+        itemCount: p.itemCount ?? p.item_count ?? 0,
+        createdAt: p.createdAt ?? p.created_at,
+        updatedAt: p.updatedAt ?? p.updated_at,
+      };
     },
     delete: (id: string): Promise<void> => {
       return this.delete<void>(`/api/playlists/${id}`);
     },
-    getItems: (id: string): Promise<PlaylistItem[]> => {
-      return this.get<PlaylistItem[]>(`/api/playlists/${id}/items`);
+    getItems: async (id: string): Promise<PlaylistItem[]> => {
+      const data = await this.get<any[]>(`/api/playlists/${id}/items`);
+      return data.map((item) => ({
+        id: item.id,
+        playlistId: item.playlistId ?? item.playlist_id,
+        position: item.position,
+        videoId: item.videoId ?? item.video_id,
+        title: item.title,
+        thumbnail: item.thumbnail,
+        channelName: item.channelName ?? item.channel_name,
+        durationSeconds: item.durationSeconds ?? item.duration_seconds ?? 0,
+        addedAt: item.addedAt ?? item.added_at,
+      }));
     },
-    addItem: (
+    addItem: async (
       id: string,
       item: {
         videoId: string;
@@ -136,7 +171,25 @@ class ApiClient {
         durationSeconds: number;
       }
     ): Promise<PlaylistItem> => {
-      return this.post<PlaylistItem>(`/api/playlists/${id}/items`, item);
+      // Backend uses SnakeCaseLower JSON — send snake_case keys & normalize response
+      const itemData = await this.post<any>(`/api/playlists/${id}/items`, {
+        video_id: item.videoId,
+        title: item.title,
+        thumbnail: item.thumbnail,
+        channel_name: item.channelName,
+        duration_seconds: item.durationSeconds,
+      });
+      return {
+        id: itemData.id,
+        playlistId: itemData.playlistId ?? itemData.playlist_id,
+        position: itemData.position,
+        videoId: itemData.videoId ?? itemData.video_id,
+        title: itemData.title,
+        thumbnail: itemData.thumbnail,
+        channelName: itemData.channelName ?? itemData.channel_name,
+        durationSeconds: itemData.durationSeconds ?? itemData.duration_seconds ?? 0,
+        addedAt: itemData.addedAt ?? itemData.added_at,
+      };
     },
     removeItem: (id: string, itemId: string): Promise<void> => {
       return this.delete<void>(`/api/playlists/${id}/items/${itemId}`);

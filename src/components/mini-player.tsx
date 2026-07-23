@@ -1,12 +1,14 @@
 import { useMusicPlayer } from "@/lib/music-player-context";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Play, Pause, SkipBack, SkipForward, X, Music2 } from "lucide-react";
 
 export function MiniPlayer() {
   const { currentVideo, isPlaying, isMiniPlayerVisible, pause, resume, next, prev, dismiss } =
     useMusicPlayer();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  if (!isMiniPlayerVisible || !currentVideo) return null;
+  // Hide the mini-player when on the Music page — the full player is already visible there
+  if (!isMiniPlayerVisible || !currentVideo || pathname === "/music") return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-sidebar/90 backdrop-blur-xl">
