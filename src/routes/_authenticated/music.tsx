@@ -84,8 +84,9 @@ const SEARCH_SUGGESTIONS = [
   "Lofi Hip Hop",
   "Jazz Rain Ambience",
   "Deep Focus Techno",
-  "Piano Chill",
-  "Synthwave Radio",
+  "coders music",
+  "holy song",
+  "podcasts"
 ];
 
 // ─── Add-to-playlist portal popover ──────────────────────────────────────────
