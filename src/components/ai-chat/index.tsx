@@ -68,7 +68,7 @@ export function AiChat() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
       {/* Panel — slides up */}
       <div
         className="transition-all duration-300 origin-bottom-right"
@@ -91,11 +91,13 @@ export function AiChat() {
       </div>
 
       {/* Floating bubble */}
-      <ChatBubbleButton
-        open={open}
-        onClick={open ? () => setOpen(false) : handleOpen}
-        hasUnread={hasUnread}
-      />
+      <div className="pointer-events-auto">
+        <ChatBubbleButton
+          open={open}
+          onClick={open ? () => setOpen(false) : handleOpen}
+          hasUnread={hasUnread}
+        />
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import {
   startOfDay, endOfDay, startOfWeek, endOfWeek,
   isWithinInterval, eachDayOfInterval, subDays
 } from "date-fns";
-import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, Calendar, CheckSquare, Sparkles, Pencil, ArrowRight, Tag, Percent } from "lucide-react";
+import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, Calendar, CheckSquare, Sparkles, Pencil, ArrowRight, Tag, Percent, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   useCreateExpense,
@@ -49,8 +49,28 @@ function ExpensesPage() {
   const [category, setCategory] = useState<string>("Food");
   const [note, setNote] = useState("");
 
-  // Sub-tabs State (Log, Pacing, Analytics, Wishlist)
-  const [activeTab, setActiveTab] = useState<"log" | "pacing" | "analytics" | "wishlist">("log");
+  // Date navigator — defaults to today, can navigate to any past day
+  const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()));
+
+  const isSelectedToday = useMemo(() => {
+    return startOfDay(selectedDate).getTime() === startOfDay(new Date()).getTime();
+  }, [selectedDate]);
+
+  const goToPrevDay = () => setSelectedDate((d) => subDays(d, 1));
+  const goToNextDay = () => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    if (startOfDay(next) <= startOfDay(new Date())) setSelectedDate(startOfDay(next));
+  };
+
+  const selectedDateLabel = useMemo(() => {
+    const today = startOfDay(new Date());
+    const yesterday = subDays(today, 1);
+    if (selectedDate.getTime() === today.getTime()) return "Today";
+    if (selectedDate.getTime() === yesterday.getTime()) return "Yesterday";
+    return format(selectedDate, "MMM d, yyyy");
+  }, [selectedDate]);
+  const [activeTab, setActiveTab] = useState<"log" | "pacing" | "analytics" | "wishlist">("log");
 
   // Time Period Filter State for Analytics Tab
   const [activePeriod, setActivePeriod] = useState<PeriodType>("month");
@@ -94,19 +114,21 @@ function ExpensesPage() {
   const monthStart = startOfMonth(now);
   const lastMonthStart = startOfMonth(subMonths(now, 1));
 
-  // Today's Spends Calculation (for the simplified logging tab)
+  // Today's Spends Calculation — driven by selectedDate
   const todayExpenses = useMemo(() => {
-    const todayStart = startOfDay(now);
-    const todayEnd = endOfDay(now);
-    return expenses.filter((e) => {
-      const date = new Date(e.occurred_at);
-      return isWithinInterval(date, { start: todayStart, end: todayEnd });
-    });
-  }, [expenses, now]);
+    const dayStart = startOfDay(selectedDate);
+    const dayEnd = endOfDay(selectedDate);
+    return expenses
+      .filter((e) => {
+        const date = new Date(e.occurred_at);
+        return isWithinInterval(date, { start: dayStart, end: dayEnd });
+      })
+      .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+  }, [expenses, selectedDate]);
 
   const totalToday = useMemo(() => {
     return todayExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  }, [todayExpenses]);
+  }, [todayExpenses]);
 
   // Actual current month totals for budget pacing (against the full calendar month)
   const thisMonthExpenses = useMemo(() => {
@@ -234,7 +256,18 @@ function ExpensesPage() {
 
   const maxCat = byCategory[0]?.[1] ?? 0;
 
-  // Form submission
+  const handleDeleteExpense = (id: string) => {
+    del.mutate(id, {
+      onSuccess: () => {
+        toast.success("Expense deleted");
+      },
+      onError: (err) => {
+        toast.error(err.message || "Failed to delete expense");
+      },
+    });
+  };
+
+  // Form submission — uses selectedDate so backdated expenses get the right occurred_at
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const n = parseFloat(amount);
@@ -242,13 +275,17 @@ function ExpensesPage() {
       toast.error("Enter a valid amount");
       return;
     }
+    // Build the occurred_at: use selected date but current time-of-day so order makes sense
+    const occurred = new Date(selectedDate);
+    const now2 = new Date();
+    occurred.setHours(now2.getHours(), now2.getMinutes(), now2.getSeconds(), now2.getMilliseconds());
     create.mutate(
-      { amount: n, category, note: note || null },
+      { amount: n, category, note: note || null, occurred_at: occurred.toISOString() },
       {
         onSuccess: () => {
           setAmount("");
           setNote("");
-          toast.success("Expense added");
+          toast.success("Expense saved");
         },
         onError: (err) => toast.error(err.message),
       },
@@ -393,7 +430,53 @@ function ExpensesPage() {
       {activeTab === "log" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
           <form onSubmit={submit} className="glass-card space-y-4 rounded-3xl p-6">
-            <h2 className="font-display text-lg font-semibold text-lagoon">Log Spent Today</h2>
+            {/* ── Date Navigator ── */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <button
+                type="button"
+                onClick={goToPrevDay}
+                className="h-8 w-8 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                title="Previous day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Dropdown — lists every day from month-start to today */}
+              <div className="flex-1 flex flex-col items-center gap-0.5">
+                <select
+                  value={format(selectedDate, "yyyy-MM-dd")}
+                  onChange={(e) => setSelectedDate(startOfDay(new Date(e.target.value + "T00:00:00")))}
+                  className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-3 py-1.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer text-center appearance-none hover:bg-white/[0.10] transition-colors"
+                  style={{ colorScheme: "light" }}
+                >
+                  {eachDayOfInterval({ start: startOfMonth(selectedDate), end: new Date() })
+                    .reverse()
+                    .map((day) => {
+                      const val = format(day, "yyyy-MM-dd");
+                      const today = startOfDay(new Date());
+                      const yesterday = subDays(today, 1);
+                      let label = format(day, "EEE, MMM d");
+                      if (day.getTime() === today.getTime()) label = "Today — " + format(day, "MMM d");
+                      else if (day.getTime() === yesterday.getTime()) label = "Yesterday — " + format(day, "MMM d");
+                      return <option key={val} value={val} style={{ color: "#111", backgroundColor: "#fff" }}>{label}</option>;
+                    })}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={goToNextDay}
+                disabled={isSelectedToday}
+                className="h-8 w-8 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                title="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <h2 className="font-display text-base font-semibold text-lagoon">
+              {isSelectedToday ? "Log Spent Today" : `Add to ${selectedDateLabel}`}
+            </h2>
             
             <div className="grid grid-cols-[1fr_auto] gap-3">
               <Input
@@ -447,18 +530,20 @@ function ExpensesPage() {
             </Button>
           </form>
 
-          {/* Today's Log Card */}
           <div className="glass-card rounded-3xl p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between border-b border-white/5 pb-3 gap-2">
-              <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider">Today's Log</h2>
+              <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {selectedDateLabel}'s Log
+              </h2>
               <span className="text-sm font-bold text-foreground">
-                Total spent today: {totalToday.toFixed(2)} {CURRENCY}
+                Total: {totalToday.toFixed(2)} {CURRENCY}
               </span>
             </div>
 
             {todayExpenses.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">
-                You haven't logged any expenses today. Enter what you spent above!
+                No expenses logged for {selectedDateLabel.toLowerCase()}.
+                {isSelectedToday ? " Enter what you spent above!" : " Add one on the left."}
               </p>
             ) : (
               <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto pr-1">
@@ -482,9 +567,11 @@ function ExpensesPage() {
                         {Number(e.amount).toFixed(2)} {CURRENCY}
                       </p>
                       <button
-                        onClick={() => del.mutate(e.id)}
-                        className="rounded p-1 text-muted-foreground hover:bg-white/5 hover:text-destructive group-hover:opacity-100 transition"
-                        title="Delete"
+                        type="button"
+                        onClick={() => handleDeleteExpense(e.id)}
+                        disabled={del.isPending}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition cursor-pointer"
+                        title="Delete expense"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -785,9 +872,11 @@ function ExpensesPage() {
                         {Number(e.amount).toFixed(2)} {CURRENCY}
                       </p>
                       <button
-                        onClick={() => del.mutate(e.id)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-white/5 hover:text-destructive group-hover:opacity-100 transition"
-                        title="Delete"
+                        type="button"
+                        onClick={() => handleDeleteExpense(e.id)}
+                        disabled={del.isPending}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition cursor-pointer"
+                        title="Delete expense"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

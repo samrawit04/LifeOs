@@ -1,13 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Folder as FolderIcon, FolderPlus, ChevronRight, Plus, Trash2, Pencil, ArchiveIcon, FileText } from "lucide-react";
-import { useCreateFolder, useCreateItem, useDeleteFolder, useDeleteItem, useFolders, useItems, useUpdateFolder, useUpdateItem } from "@/hooks/use-lifeos";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  BookOpen,
+  FolderPlus,
+  ChevronRight,
+  Plus,
+  Trash2,
+  Pencil,
+  Archive as ArchiveIcon,
+  Paperclip,
+  X,
+  Play,
+  ChevronLeft,
+  Camera,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Square,
+  Circle,
+  FileText,
+} from "lucide-react";
+import {
+  useCreateFolder,
+  useCreateItem,
+  useDeleteFolder,
+  useDeleteItem,
+  useFolders,
+  useItems,
+  useUpdateFolder,
+  useUpdateItem,
+} from "@/hooks/use-lifeos";
 import type { Folder, Item } from "@/lib/lifeos-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -31,6 +59,67 @@ export const Route = createFileRoute("/_authenticated/notebooks")({
   component: Notebooks,
 });
 
+// ─── Block-based content model ────────────────────────────────────────────────
+
+type TextBlock  = { id: string; kind: "text"; content: string };
+type MediaBlock = { id: string; kind: "media"; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string };
+type Block = TextBlock | MediaBlock;
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+const NOTEBOOK_COLORS = [
+  "#6ee7b7", "#fbbf24", "#f9a8d4", "#93c5fd", "#c4b5fd", "#86efac",
+];
+
+function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
+
+function parseBlocks(raw: string | null): Block[] {
+  const empty: Block[] = [{ id: genId(), kind: "text", content: "" }];
+  if (!raw) return empty;
+  try {
+    const p = JSON.parse(raw);
+    // New block format
+    if (p.version === 2 && Array.isArray(p.blocks) && p.blocks.length > 0) {
+      const blocks = p.blocks as Block[];
+      // Always end with a text block so cursor has somewhere to land
+      if (blocks[blocks.length - 1].kind !== "text") blocks.push({ id: genId(), kind: "text", content: "" });
+      return blocks;
+    }
+    // Legacy { text, attachments } format
+    if (typeof p === "object" && p !== null && "text" in p) {
+      const blocks: Block[] = [{ id: genId(), kind: "text", content: p.text ?? "" }];
+      for (const att of (Array.isArray(p.attachments) ? p.attachments : [])) {
+        blocks.push({ id: att.id ?? genId(), kind: "media", type: att.type, name: att.name, dataUrl: att.dataUrl, mimeType: att.mimeType });
+        blocks.push({ id: genId(), kind: "text", content: "" });
+      }
+      return blocks;
+    }
+  } catch { /* plain text fallback */ }
+  return [{ id: genId(), kind: "text", content: raw ?? "" }, { id: genId(), kind: "text", content: "" }];
+}
+
+function serializeBlocks(blocks: Block[]): string {
+  return JSON.stringify({ version: 2, blocks });
+}
+
+// For page card preview — extract plain text & first image from blocks
+function blockPreview(raw: string | null): { text: string; firstImage?: string; mediaCount: number } {
+  const blocks = parseBlocks(raw);
+  const text = blocks.filter((b): b is TextBlock => b.kind === "text").map(b => b.content).join(" ").trim();
+  const mediaBlocks = blocks.filter((b): b is MediaBlock => b.kind === "media");
+  const firstImage = mediaBlocks.find(b => b.type === "image")?.dataUrl;
+  return { text, firstImage, mediaCount: mediaBlocks.length };
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isToday(d)) return "Today";
+  if (isYesterday(d)) return "Yesterday";
+  return format(d, "MMM d, yyyy");
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 function Notebooks() {
   const { data: folders = [] } = useFolders();
   const { data: items = [] } = useItems();
@@ -45,37 +134,38 @@ function Notebooks() {
   const [selectedPage, setSelectedPage] = useState<Item | null>(null);
   const [newName, setNewName] = useState("");
 
-  // Reusable popups state
   const [createSubFolderParentId, setCreateSubFolderParentId] = useState<string | null>(null);
   const [createSubFolderName, setCreateSubFolderName] = useState("");
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [renameFolderName, setRenameFolderName] = useState("");
   const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
 
-  // Filter folders at the current navigation level
-  const currentFolders = useMemo(() => {
-    return folders.filter((f) => (f.parent_folder_id ?? null) === selectedFolderId);
-  }, [folders, selectedFolderId]);
-
-  // Filter pages inside the active folder
-  const pages = useMemo(
-    () => items.filter((i) => i.type === "notebook_page" && !i.archived && (i.folder_id ?? null) === selectedFolderId),
-    [items, selectedFolderId],
+  const currentFolders = useMemo(
+    () => folders.filter((f) => (f.parent_folder_id ?? null) === selectedFolderId),
+    [folders, selectedFolderId]
   );
 
-  // Calculate breadcrumbs path for navigation
+  const pages = useMemo(
+    () =>
+      items
+        .filter(
+          (i) =>
+            i.type === "notebook_page" &&
+            !i.archived &&
+            (i.folder_id ?? null) === selectedFolderId
+        )
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [items, selectedFolderId]
+  );
+
   const breadcrumbs = useMemo(() => {
     if (!selectedFolderId) return [];
     const path: Folder[] = [];
-    let currentId: string | null = selectedFolderId;
-    while (currentId) {
-      const folder = folders.find((f) => f.id === currentId);
-      if (folder) {
-        path.unshift(folder);
-        currentId = folder.parent_folder_id ?? null;
-      } else {
-        break;
-      }
+    let cur: string | null = selectedFolderId;
+    while (cur) {
+      const f = folders.find((x) => x.id === cur);
+      if (f) { path.unshift(f); cur = f.parent_folder_id ?? null; }
+      else break;
     }
     return path;
   }, [folders, selectedFolderId]);
@@ -89,8 +179,8 @@ function Notebooks() {
   const addPage = () => {
     if (!selectedFolderId) return toast.error("Choose a notebook first");
     createItem.mutate(
-      { type: "notebook_page", title: "Untitled", content: "", folder_id: selectedFolderId },
-      { onSuccess: (i) => setSelectedPage(i) },
+      { type: "notebook_page", title: "Untitled", content: serializeBlocks([{ id: genId(), kind: "text", content: "" }]), folder_id: selectedFolderId },
+      { onSuccess: (i) => setSelectedPage(i) }
     );
   };
 
@@ -99,13 +189,7 @@ function Notebooks() {
     if (!createSubFolderName.trim() || !createSubFolderParentId) return;
     createFolder.mutate(
       { name: createSubFolderName.trim(), parent_folder_id: createSubFolderParentId },
-      {
-        onSuccess: () => {
-          setCreateSubFolderParentId(null);
-          setCreateSubFolderName("");
-        },
-        onError: (err) => toast.error(err.message),
-      }
+      { onSuccess: () => { setCreateSubFolderParentId(null); setCreateSubFolderName(""); }, onError: (err) => toast.error(err.message) }
     );
   };
 
@@ -114,13 +198,7 @@ function Notebooks() {
     if (!renameFolderName.trim() || !renameFolderId) return;
     updateFolder.mutate(
       { id: renameFolderId, patch: { name: renameFolderName.trim() } },
-      {
-        onSuccess: () => {
-          setRenameFolderId(null);
-          setRenameFolderName("");
-        },
-        onError: (err) => toast.error(err.message),
-      }
+      { onSuccess: () => { setRenameFolderId(null); setRenameFolderName(""); }, onError: (err) => toast.error(err.message) }
     );
   };
 
@@ -129,8 +207,8 @@ function Notebooks() {
     deleteFolder.mutate(deleteFolderId, {
       onSuccess: () => {
         if (selectedFolderId === deleteFolderId) {
-          const deletedFolder = folders.find((f) => f.id === deleteFolderId);
-          setSelectedFolderId(deletedFolder?.parent_folder_id || null);
+          const del = folders.find((f) => f.id === deleteFolderId);
+          setSelectedFolderId(del?.parent_folder_id || null);
         }
         setDeleteFolderId(null);
       },
@@ -140,36 +218,32 @@ function Notebooks() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] lg:h-screen bg-cozy-grain">
-      {/* Breadcrumb Header Row */}
-      <header className="flex items-center justify-between border-b px-6 py-4 bg-background/30 backdrop-blur-md">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-none py-1">
+      {/* ── Compact Breadcrumb Header ── */}
+      <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-1.5 bg-background/40 backdrop-blur-md shrink-0 min-h-0">
+        {/* Breadcrumbs — very compact */}
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none whitespace-nowrap">
           <button
-            onClick={() => {
-              setSelectedFolderId(null);
-              setSelectedPage(null);
-            }}
+            onClick={() => { setSelectedFolderId(null); setSelectedPage(null); }}
             className={cn(
-              "font-display text-lg font-semibold hover:text-primary transition-colors",
-              selectedFolderId === null ? "text-lagoon" : "text-muted-foreground"
+              "flex items-center gap-1 text-xs font-medium transition-colors hover:text-primary rounded px-1 py-0.5",
+              selectedFolderId === null ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            Notebooks
+            <BookOpen className="h-3 w-3 shrink-0" />
+            <span>Notebooks</span>
           </button>
-          
+
           {breadcrumbs.map((folder, index) => {
             const isLast = index === breadcrumbs.length - 1;
             return (
-              <div key={folder.id} className="flex items-center gap-2">
-                <ChevronRight className="h-4 w-4 text-muted-foreground/45" />
+              <div key={folder.id} className="flex items-center gap-0.5">
+                <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                 <button
                   disabled={isLast && !selectedPage}
-                  onClick={() => {
-                    setSelectedFolderId(folder.id);
-                    setSelectedPage(null);
-                  }}
+                  onClick={() => { setSelectedFolderId(folder.id); setSelectedPage(null); }}
                   className={cn(
-                    "font-display text-lg font-semibold hover:text-primary transition-colors",
-                    (isLast && !selectedPage) ? "text-lagoon" : "text-muted-foreground"
+                    "text-xs font-medium transition-colors hover:text-primary rounded px-1 py-0.5",
+                    isLast && !selectedPage ? "text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {folder.name}
@@ -179,46 +253,45 @@ function Notebooks() {
           })}
 
           {selectedPage && (
-            <div className="flex items-center gap-2">
-              <ChevronRight className="h-4 w-4 text-muted-foreground/45" />
-              <span className="font-display text-lg font-semibold text-lagoon max-w-[120px] sm:max-w-[200px] truncate">
+            <div className="flex items-center gap-0.5">
+              <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <span className="text-xs font-medium text-primary max-w-[120px] sm:max-w-[220px] truncate px-1">
                 {selectedPage.title || "Untitled"}
               </span>
             </div>
           )}
         </div>
 
-        {/* Action bar at the right of Header */}
+        {/* Actions — only on list view */}
         {!selectedPage && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {selectedFolderId === null ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="New notebook…"
-                  className="h-9 w-40 sm:w-48 border-white/10 bg-white/[0.03] text-sm"
+                  className="h-7 w-32 sm:w-44 text-xs border-white/10 bg-white/[0.03]"
                   onKeyDown={(e) => e.key === "Enter" && addRoot()}
                 />
-                <Button onClick={addRoot} size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90">
-                  <FolderPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">Add Notebook</span>
+                <Button onClick={addRoot} size="sm" className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                  <FolderPlus className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Add</span>
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Button
-                  onClick={() => {
-                    setCreateSubFolderParentId(selectedFolderId);
-                    setCreateSubFolderName("");
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="border-white/10 bg-white/[0.03] hover:bg-white/[0.08]"
+                  onClick={() => { setCreateSubFolderParentId(selectedFolderId); setCreateSubFolderName(""); }}
+                  variant="outline" size="sm"
+                  className="h-7 px-2.5 text-xs border-white/10 bg-white/[0.03] hover:bg-white/[0.08]"
                 >
-                  <FolderPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">Sub-notebook</span>
+                  <FolderPlus className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Sub-notebook</span>
                 </Button>
-                <Button onClick={addPage} size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90">
-                  <Plus className="h-4 w-4 mr-1 sm:mr-1.5" /> <span className="hidden sm:inline">New page</span>
+                <Button onClick={addPage} size="sm" className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">New page</span>
                 </Button>
               </div>
             )}
@@ -226,182 +299,130 @@ function Notebooks() {
         )}
       </header>
 
-      {/* Main content body area */}
-      <div className="flex-1 overflow-auto">
+      {/* ── Body ── */}
+      <div className="flex-1 overflow-auto min-h-0">
         {selectedPage ? (
-          <PageEditor
+          <NoteEditor
             key={selectedPage.id}
             page={selectedPage}
             onClose={() => setSelectedPage(null)}
             onChange={(patch) => updateItem.mutate({ id: selectedPage.id, patch })}
-            onArchive={() => {
-              updateItem.mutate({ id: selectedPage.id, patch: { archived: true } });
-              setSelectedPage(null);
-            }}
-            onDelete={() => {
-              deleteItem.mutate(selectedPage.id);
-              setSelectedPage(null);
-            }}
+            onArchive={() => { updateItem.mutate({ id: selectedPage.id, patch: { archived: true } }); setSelectedPage(null); }}
+            onDelete={() => { deleteItem.mutate(selectedPage.id); setSelectedPage(null); }}
           />
         ) : (
-          <div className="p-6 max-w-7xl mx-auto space-y-8">
-            {/* Folders/Notebooks Section */}
+          <div className="p-5 max-w-5xl mx-auto space-y-8">
+            {/* Notebooks grid */}
             {(currentFolders.length > 0 || selectedFolderId === null) && (
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+              <section>
+                <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">
                   {selectedFolderId === null ? "My Notebooks" : "Sub-notebooks"}
                 </h2>
-                
                 {currentFolders.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-muted-foreground bg-white/[0.01]">
-                    <FolderIcon className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-                    <p className="text-sm">No notebooks yet.</p>
-                    <p className="text-xs mt-1">Create one using the input field above.</p>
-                  </div>
+                  <EmptyState
+                    icon={<BookOpen className="h-9 w-9 text-muted-foreground/25" />}
+                    title="No notebooks yet"
+                    description="Create one with the field above."
+                  />
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {currentFolders.map((folder) => (
-                      <div
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {currentFolders.map((folder, idx) => (
+                      <NotebookCard
                         key={folder.id}
+                        folder={folder}
+                        colorAccent={NOTEBOOK_COLORS[idx % NOTEBOOK_COLORS.length]}
                         onClick={() => setSelectedFolderId(folder.id)}
-                        className="group relative flex items-center justify-between p-4 bg-card/45 backdrop-blur-md border border-white/5 rounded-2xl hover:bg-card hover:border-primary/20 hover:shadow-soft transition-all duration-300 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color || "#06b6d4" }} />
-                          <span className="truncate font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                            {folder.name}
-                          </span>
-                        </div>
-                        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => {
-                              setRenameFolderId(folder.id);
-                              setRenameFolderName(folder.name);
-                            }}
-                            className="rounded p-1 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
-                            title="Rename"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteFolderId(folder.id)}
-                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
+                        onRename={() => { setRenameFolderId(folder.id); setRenameFolderName(folder.name); }}
+                        onDelete={() => setDeleteFolderId(folder.id)}
+                        pageCount={items.filter((i) => i.type === "notebook_page" && !i.archived && i.folder_id === folder.id).length}
+                      />
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             )}
 
-            {/* Pages Section */}
+            {/* Pages list */}
             {selectedFolderId !== null && (
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-                  Pages
-                </h2>
-                
+              <section>
+                <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">Pages</h2>
                 {pages.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-muted-foreground bg-white/[0.01]">
-                    <FileText className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-                    <p className="text-sm">No pages here yet.</p>
-                    <Button onClick={addPage} size="sm" variant="link" className="mt-2 text-lagoon hover:text-lagoon/90 font-medium">
-                      Create your first page
-                    </Button>
-                  </div>
+                  <EmptyState
+                    icon={<FileText className="h-9 w-9 text-muted-foreground/25" />}
+                    title="No pages yet"
+                    description="Start writing your first page."
+                    action={
+                      <Button onClick={addPage} size="sm" className="mt-3 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs">
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> New page
+                      </Button>
+                    }
+                  />
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {pages.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => setSelectedPage(p)}
-                        className="rounded-2xl border border-white/5 bg-card/45 p-5 text-left shadow-soft transition-all duration-300 hover:shadow-note hover:bg-card hover:border-primary/20"
-                      >
-                        <div className="flex items-center gap-2 text-clay">
-                          <FileText className="h-4 w-4" />
-                          <span className="text-xs uppercase tracking-wider font-semibold">Page</span>
-                        </div>
-                        <h3 className="mt-3 truncate font-display text-lg text-lagoon font-semibold">{p.title || "Untitled"}</h3>
-                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground h-12 leading-relaxed">{p.content || "No content yet..."}</p>
-                        <p className="mt-4 text-xs text-muted-foreground/70">Edited {format(new Date(p.updated_at), "MMM d, yyyy")}</p>
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <div className="absolute left-[22px] top-0 bottom-0 w-px bg-gradient-to-b from-primary/30 via-primary/10 to-transparent hidden sm:block" />
+                    <div className="space-y-3">
+                      {pages.map((p) => (
+                        <PageCard key={p.id} page={p} onClick={() => setSelectedPage(p)} />
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
+              </section>
             )}
           </div>
         )}
       </div>
 
-      {/* Add Sub-Notebook Dialog */}
-      <Dialog open={createSubFolderParentId !== null} onOpenChange={(open) => !open && setCreateSubFolderParentId(null)}>
-        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[425px]">
+      {/* FAB */}
+      {selectedFolderId !== null && !selectedPage && (
+        <button
+          onClick={addPage}
+          className="fixed bottom-6 right-24 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 text-xs"
+        >
+          <Plus className="h-4 w-4" /> New page
+        </button>
+      )}
+
+      {/* ── Dialogs ── */}
+      <Dialog open={createSubFolderParentId !== null} onOpenChange={(o) => !o && setCreateSubFolderParentId(null)}>
+        <DialogContent className="border-white/10 bg-[#1a1e1a] text-foreground sm:max-w-sm">
           <form onSubmit={handleCreateSubFolder}>
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl text-lagoon">New notebook name</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle className="font-display text-lg">New sub-notebook</DialogTitle></DialogHeader>
             <div className="py-4">
-              <Input
-                value={createSubFolderName}
-                onChange={(e) => setCreateSubFolderName(e.target.value)}
-                placeholder="Notebook name…"
-                className="col-span-3"
-                autoFocus
-              />
+              <Input value={createSubFolderName} onChange={(e) => setCreateSubFolderName(e.target.value)} placeholder="Name…" autoFocus className="border-white/10 bg-white/[0.04] text-sm" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setCreateSubFolderParentId(null)} className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-lagoon text-cream hover:bg-lagoon/90">Create</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setCreateSubFolderParentId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Create</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Rename Notebook Dialog */}
-      <Dialog open={renameFolderId !== null} onOpenChange={(open) => !open && setRenameFolderId(null)}>
-        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[425px]">
+      <Dialog open={renameFolderId !== null} onOpenChange={(o) => !o && setRenameFolderId(null)}>
+        <DialogContent className="border-white/10 bg-[#1a1e1a] text-foreground sm:max-w-sm">
           <form onSubmit={handleRenameFolder}>
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl text-lagoon">Rename notebook</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle className="font-display text-lg">Rename notebook</DialogTitle></DialogHeader>
             <div className="py-4">
-              <Input
-                value={renameFolderName}
-                onChange={(e) => setRenameFolderName(e.target.value)}
-                placeholder="New name…"
-                className="col-span-3"
-                autoFocus
-              />
+              <Input value={renameFolderName} onChange={(e) => setRenameFolderName(e.target.value)} placeholder="New name…" autoFocus className="border-white/10 bg-white/[0.04] text-sm" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setRenameFolderId(null)} className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-lagoon text-cream hover:bg-lagoon/90">Rename</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setRenameFolderId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Save</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Notebook Dialog */}
-      <AlertDialog open={deleteFolderId !== null} onOpenChange={(open) => !open && setDeleteFolderId(null)}>
-        <AlertDialogContent className="border-white/10 bg-[#1e1a1d] text-foreground">
+      <AlertDialog open={deleteFolderId !== null} onOpenChange={(o) => !o && setDeleteFolderId(null)}>
+        <AlertDialogContent className="border-white/10 bg-[#1a1e1a] text-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display text-xl text-lagoon">Delete this notebook?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              This action will delete this notebook and all its pages. This cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle className="font-display text-lg">Delete notebook?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">All pages inside will be deleted. This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 gap-2">
-            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10 hover:text-foreground">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/95">Delete</AlertDialogAction>
+          <AlertDialogFooter className="mt-3 gap-2">
+            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -409,54 +430,581 @@ function Notebooks() {
   );
 }
 
-function PageEditor({
-  page, onClose, onChange, onArchive, onDelete,
-}: {
+// ─── Notebook Card ─────────────────────────────────────────────────────────────
+
+function NotebookCard({ folder, colorAccent, onClick, onRename, onDelete, pageCount }: {
+  folder: Folder; colorAccent: string; onClick: () => void; onRename: () => void; onDelete: () => void; pageCount: number;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="group relative flex flex-col gap-2 p-4 rounded-2xl cursor-pointer transition-all duration-300 bg-card/50 border border-white/[0.06] hover:border-white/[0.14] hover:bg-card hover:shadow-note overflow-hidden"
+    >
+      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: colorAccent }} />
+      <div className="flex items-start justify-between gap-2 pl-3">
+        <div>
+          <p className="text-lg mb-0.5">📓</p>
+          <h3 className="font-display font-semibold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2">{folder.name}</h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{pageCount} {pageCount === 1 ? "page" : "pages"}</p>
+        </div>
+        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onRename} className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"><Pencil className="h-3 w-3" /></button>
+          <button onClick={onDelete} className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-colors"><Trash2 className="h-3 w-3" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page Card ─────────────────────────────────────────────────────────────────
+
+function PageCard({ page, onClick }: { page: Item; onClick: () => void }) {
+  const preview = useMemo(() => blockPreview(page.content), [page.content]);
+
+  return (
+    <button
+      onClick={onClick}
+      className="group relative flex items-start gap-4 text-left w-full p-4 rounded-2xl bg-card/40 border border-white/[0.05] hover:bg-card/70 hover:border-white/[0.12] hover:shadow-note transition-all duration-300"
+    >
+      <div className="hidden sm:flex flex-col items-center gap-1 shrink-0 pt-1">
+        <div className="h-4 w-4 rounded-full border-2 border-primary/40 bg-background group-hover:border-primary group-hover:bg-primary/20 transition-all flex items-center justify-center">
+          <div className="h-1 w-1 rounded-full bg-primary/60 group-hover:bg-primary" />
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span className="text-[10px] text-muted-foreground/50 font-medium">{formatDateLabel(page.updated_at)}</span>
+          {preview.mediaCount > 0 && (
+            <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5">
+              <Paperclip className="h-2.5 w-2.5" />{preview.mediaCount}
+            </span>
+          )}
+        </div>
+        <h3 className="font-display font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate">{page.title || "Untitled"}</h3>
+        <div className="flex gap-3 items-start mt-1">
+          <p className="flex-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {preview.text || <span className="italic opacity-40">Empty…</span>}
+          </p>
+          {preview.firstImage && (
+            <div className="shrink-0 h-10 w-10 rounded-lg overflow-hidden border border-white/10">
+              <img src={preview.firstImage} alt="" className="h-full w-full object-cover" />
+            </div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Note Editor (block-based) ─────────────────────────────────────────────────
+
+function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   page: Item; onClose: () => void; onChange: (p: Partial<Item>) => void; onArchive: () => void; onDelete: () => void;
 }) {
+  const [blocks, setBlocks] = useState<Block[]>(() => parseBlocks(page.content));
   const [title, setTitle] = useState(page.title ?? "");
-  const [content, setContent] = useState(page.content ?? "");
-  const [tagsInput, setTagsInput] = useState((page.tags ?? []).join(", "));
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recorderMode, setRecorderMode] = useState<"idle" | "photo" | "audio" | "video">("idle");
+  // Track which text block is currently focused so media inserts after it
+  const activeBlockIdRef = useRef<string | null>(null);
+  const focusPendingRef = useRef<string | null>(null);
 
-  const save = () => {
-    const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-    onChange({ title, content, tags });
+  const save = useCallback(
+    (overrideBlocks?: Block[], overrideTitle?: string) => {
+      onChange({
+        title: overrideTitle ?? title,
+        content: serializeBlocks(overrideBlocks ?? blocks),
+      });
+    },
+    [blocks, title, onChange]
+  );
+
+  // Update one text block's content
+  const updateText = (id: string, content: string) => {
+    setBlocks((prev) => prev.map((b) => b.id === id && b.kind === "text" ? { ...b, content } : b));
+  };
+
+  // Insert a media block (+ empty text continuation) after the active text block
+  const insertMedia = useCallback((media: Omit<MediaBlock, "kind">) => {
+    setBlocks((prev) => {
+      const activeId = activeBlockIdRef.current ?? prev[prev.length - 1]?.id;
+      const idx = prev.findIndex((b) => b.id === activeId);
+      const insertAt = idx >= 0 ? idx + 1 : prev.length;
+      const mediaBlock: MediaBlock = { ...media, kind: "media" };
+      const continuationBlock: TextBlock = { id: genId(), kind: "text", content: "" };
+      focusPendingRef.current = continuationBlock.id;
+      const next = [
+        ...prev.slice(0, insertAt),
+        mediaBlock,
+        continuationBlock,
+        ...prev.slice(insertAt),
+      ];
+      // Save immediately with the new blocks
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  // Focus the continuation textarea after inserting media
+  useEffect(() => {
+    if (!focusPendingRef.current) return;
+    const id = focusPendingRef.current;
+    focusPendingRef.current = null;
+    setTimeout(() => {
+      (document.getElementById(`tb-${id}`) as HTMLTextAreaElement | null)?.focus();
+    }, 30);
+  }, [blocks]);
+
+  const removeBlock = (id: string) => {
+    setBlocks((prev) => {
+      const next = prev.filter((b) => b.id !== id);
+      // Always keep at least one text block
+      if (next.filter(b => b.kind === "text").length === 0) next.push({ id: genId(), kind: "text", content: "" });
+      save(next);
+      return next;
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    Array.from(e.target.files ?? []).forEach((file) => {
+      if (file.size > MAX_FILE_BYTES) { toast.error(`"${file.name}" exceeds 10 MB limit.`); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        let type: MediaBlock["type"] = "file";
+        if (file.type.startsWith("image/")) type = "image";
+        else if (file.type.startsWith("audio/")) type = "audio";
+        else if (file.type.startsWith("video/")) type = "video";
+        insertMedia({ id: genId(), type, name: file.name, dataUrl, mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b px-6 py-3">
-        <Button variant="ghost" onClick={() => { save(); onClose(); }}>← Back</Button>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onArchive}><ArchiveIcon className="h-4 w-4" /> Archive</Button>
-          <Button variant="ghost" onClick={onDelete} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
+    <>
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* ── Scrollable writing area ── */}
+        <div className="flex-1 overflow-auto min-h-0">
+          <div className="mx-auto max-w-4xl px-4 pt-5 pb-6">
+            {/* Title */}
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => save()}
+              placeholder="Title"
+              className="w-full bg-transparent font-display text-2xl sm:text-3xl font-semibold text-foreground placeholder:text-muted-foreground/25 focus:outline-none leading-tight"
+            />
+            <p className="text-[10px] text-muted-foreground/40 mt-1 mb-4 font-medium tracking-wider uppercase">
+              {format(new Date(page.updated_at), "EEEE, MMM d · yyyy")}
+            </p>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent mb-4" />
+
+            {/* ── Blocks ── */}
+            {blocks.map((block, idx) => {
+              if (block.kind === "text") {
+                return (
+                  <AutoTextarea
+                    key={block.id}
+                    id={`tb-${block.id}`}
+                    value={block.content}
+                    placeholder={idx === 0 ? "Start writing…" : "Continue writing…"}
+                    onChange={(val) => updateText(block.id, val)}
+                    onFocus={() => { activeBlockIdRef.current = block.id; }}
+                    onBlur={() => save()}
+                  />
+                );
+              }
+              // media block
+              return (
+                <div key={block.id} className="my-2">
+                  <AttachmentView
+                    attachment={{ id: block.id, type: block.type, name: block.name, dataUrl: block.dataUrl, mimeType: block.mimeType }}
+                    onRemove={() => removeBlock(block.id)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Bottom bar ── */}
+        <div className="shrink-0 border-t border-white/[0.06] bg-background/60 backdrop-blur-md">
+          <div className="mx-auto max-w-4xl px-4 py-2.5 flex items-center justify-between gap-2">
+            <button
+              onClick={() => { save(); onClose(); }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" /> Back
+            </button>
+            <div className="flex items-center gap-1">
+              <ToolbarBtn icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => setRecorderMode("photo")} title="Take a photo" />
+              <ToolbarBtn icon={<Mic className="h-4 w-4" />} label="Audio" onClick={() => setRecorderMode("audio")} title="Record audio" />
+              <ToolbarBtn icon={<Video className="h-4 w-4" />} label="Video" onClick={() => setRecorderMode("video")} title="Record video" />
+              <ToolbarBtn icon={<Paperclip className="h-4 w-4" />} label="File" onClick={() => fileInputRef.current?.click()} title="Attach file" />
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button onClick={onArchive} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" title="Archive">
+                <ArchiveIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Archive</span>
+              </button>
+              <button onClick={() => setDeleteDialogOpen(true)} className="flex items-center gap-1 text-[11px] text-destructive/60 hover:text-destructive transition-colors px-2 py-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
+                <Trash2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Delete</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-6 py-8">
-        <div className="mx-auto max-w-2xl">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={save}
-            placeholder="Untitled"
-            className="w-full bg-transparent font-display text-4xl font-semibold text-lagoon placeholder:text-muted-foreground focus:outline-none"
-          />
-          <Input
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            onBlur={save}
-            placeholder="tags, separated, by commas"
-            className="mt-3 border-0 border-b bg-transparent px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
-          />
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onBlur={save}
-            placeholder="Start writing…"
-            className="mt-6 min-h-[60vh] resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none focus-visible:ring-0"
-          />
-        </div>
+
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
+
+      {recorderMode !== "idle" && (
+        <RecorderOverlay
+          mode={recorderMode}
+          onCapture={(att) => { insertMedia(att); setRecorderMode("idle"); }}
+          onClose={() => setRecorderMode("idle")}
+        />
+      )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="border-white/10 bg-[#1a1e1a] text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg">Delete this page?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">This will permanently delete the page. Cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-3 gap-2">
+            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10">Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ─── Auto-growing textarea block ───────────────────────────────────────────────
+
+function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
+  id: string; value: string; placeholder: string;
+  onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      id={id}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      className="w-full bg-transparent text-sm sm:text-base leading-[1.85] text-foreground/85 placeholder:text-muted-foreground/20 focus:outline-none resize-none min-h-[2rem] font-sans block overflow-hidden"
+    />
+  );
+}
+
+// ─── Toolbar Button ────────────────────────────────────────────────────────────
+
+function ToolbarBtn({ icon, label, onClick, title }: { icon: React.ReactNode; label: string; onClick: () => void; title?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] border border-transparent hover:border-white/[0.08] transition-all duration-150"
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+// ─── Recorder Overlay ──────────────────────────────────────────────────────────
+
+function RecorderOverlay({ mode, onCapture, onClose }: {
+  mode: "photo" | "audio" | "video";
+  onCapture: (att: AttachmentLike) => void;
+  onClose: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Start camera/mic stream
+  useEffect(() => {
+    let cancelled = false;
+    const constraints: MediaStreamConstraints =
+      mode === "audio"
+        ? { audio: true }
+        : mode === "photo"
+        ? { video: { facingMode: "environment" }, audio: false }
+        : { video: { facingMode: "environment" }, audio: true };
+
+    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+      if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+      streamRef.current = stream;
+      if (videoRef.current && mode !== "audio") {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setIsReady(true);
+    }).catch((err) => {
+      if (!cancelled) setError(err?.message ?? "Could not access camera/microphone.");
+    });
+
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [mode]);
+
+  const startRecording = () => {
+    if (!streamRef.current) return;
+    chunksRef.current = [];
+    const mimeType = mode === "audio" ? "audio/webm" : "video/webm";
+    const recorder = new MediaRecorder(streamRef.current, { mimeType });
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        onCapture({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          type: mode === "audio" ? "audio" : "video",
+          name: `recording-${Date.now()}.${mode === "audio" ? "webm" : "webm"}`,
+          dataUrl,
+          mimeType,
+        });
+      };
+      reader.readAsDataURL(blob);
+    };
+    recorder.start();
+    recorderRef.current = recorder;
+    setIsRecording(true);
+    setElapsed(0);
+    timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    setIsRecording(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const takePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    onCapture({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type: "image",
+      name: `photo-${Date.now()}.jpg`,
+      dataUrl,
+      mimeType: "image/jpeg",
+    });
+  };
+
+  const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm">
+      {/* Close */}
+      <div className="flex items-center justify-between px-5 py-4">
+        <span className="text-sm font-medium text-white/70">
+          {mode === "photo" ? "Take Photo" : mode === "audio" ? "Record Audio" : "Record Video"}
+        </span>
+        <button onClick={onClose} className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+          <X className="h-4 w-4" />
+        </button>
       </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5">
+        {error ? (
+          <div className="text-center">
+            <p className="text-red-400 text-sm mb-2">⚠️ {error}</p>
+            <Button onClick={onClose} size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">Close</Button>
+          </div>
+        ) : mode === "audio" ? (
+          /* Audio UI */
+          <div className="flex flex-col items-center gap-6">
+            <div className={cn(
+              "h-32 w-32 rounded-full flex items-center justify-center transition-all duration-300",
+              isRecording
+                ? "bg-red-500/20 shadow-[0_0_0_12px_rgba(239,68,68,0.1),0_0_0_24px_rgba(239,68,68,0.05)] animate-pulse"
+                : "bg-white/10"
+            )}>
+              {isRecording ? <MicOff className="h-12 w-12 text-red-400" /> : <Mic className="h-12 w-12 text-white/60" />}
+            </div>
+
+            {isRecording && (
+              <p className="text-2xl font-mono text-red-400 font-bold">{fmtTime(elapsed)}</p>
+            )}
+
+            {isReady && (
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all duration-200",
+                  isRecording
+                    ? "bg-red-500 text-white hover:bg-red-400"
+                    : "bg-white text-black hover:bg-white/90"
+                )}
+              >
+                {isRecording ? <><Square className="h-4 w-4 fill-white" /> Stop & Save</> : <><Circle className="h-4 w-4 fill-red-500 text-red-500" /> Start Recording</>}
+              </button>
+            )}
+          </div>
+        ) : (
+          /* Camera UI (photo or video) */
+          <div className="flex flex-col items-center gap-4 w-full max-w-md">
+            <div className="relative w-full rounded-2xl overflow-hidden bg-black/50 border border-white/10">
+              <video ref={videoRef} muted playsInline className="w-full h-64 sm:h-80 object-cover" />
+              {isRecording && (
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur rounded-full px-3 py-1">
+                  <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs text-white font-mono">{fmtTime(elapsed)}</span>
+                </div>
+              )}
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+
+            {isReady && (
+              <div className="flex gap-3">
+                {mode === "photo" ? (
+                  <button
+                    onClick={takePhoto}
+                    className="h-16 w-16 rounded-full bg-white border-4 border-white/30 hover:scale-105 active:scale-95 transition-all duration-150 flex items-center justify-center shadow-lg"
+                    title="Take photo"
+                  >
+                    <Camera className="h-6 w-6 text-black" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={cn(
+                      "h-16 w-16 rounded-full flex items-center justify-center border-4 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg",
+                      isRecording
+                        ? "bg-red-500 border-red-300 text-white"
+                        : "bg-red-500 border-white/30 text-white"
+                    )}
+                    title={isRecording ? "Stop" : "Record"}
+                  >
+                    {isRecording
+                      ? <Square className="h-6 w-6 fill-white" />
+                      : <VideoOff className="h-6 w-6" />}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Attachment View ───────────────────────────────────────────────────────────
+
+type AttachmentLike = { id: string; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string };
+
+function AttachmentView({ attachment, onRemove }: { attachment: AttachmentLike; onRemove: () => void }) {
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  if (attachment.type === "image") {
+    return (
+      <div className="relative group inline-block">
+        <img src={attachment.dataUrl} alt={attachment.name} className="max-h-72 max-w-full rounded-xl object-cover border border-white/10 shadow-note" />
+        <button onClick={onRemove} className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+          <X className="h-3 w-3" />
+        </button>
+        <p className="text-[10px] text-muted-foreground/40 mt-1">{attachment.name}</p>
+      </div>
+    );
+  }
+
+  if (attachment.type === "audio") {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.07] group">
+        <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center text-primary shrink-0">
+          <Mic className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-foreground font-medium truncate mb-1">{attachment.name}</p>
+          <audio controls src={attachment.dataUrl} className="w-full h-7" />
+        </div>
+        <button onClick={onRemove} className="shrink-0 h-6 w-6 rounded-full bg-white/[0.06] flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
+  if (attachment.type === "video") {
+    return (
+      <div className="relative group rounded-xl overflow-hidden border border-white/10 shadow-note">
+        <video ref={videoRef} src={attachment.dataUrl} className="max-h-64 w-full object-cover" controls={videoPlaying} />
+        {!videoPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer" onClick={() => { setVideoPlaying(true); videoRef.current?.play(); }}>
+            <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors">
+              <Play className="h-5 w-5 text-white fill-white" />
+            </div>
+          </div>
+        )}
+        <button onClick={onRemove} className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+          <X className="h-3 w-3" />
+        </button>
+        <p className="text-[10px] text-muted-foreground/40 p-1.5">{attachment.name}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.07] group">
+      <div className="h-8 w-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent shrink-0">
+        <Paperclip className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-foreground font-medium truncate">{attachment.name}</p>
+        <a href={attachment.dataUrl} download={attachment.name} className="text-[10px] text-primary/60 hover:text-primary transition-colors">Download</a>
+      </div>
+      <button onClick={onRemove} className="shrink-0 h-6 w-6 rounded-full bg-white/[0.06] flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Empty State ───────────────────────────────────────────────────────────────
+
+function EmptyState({ icon, title, description, action }: { icon: React.ReactNode; title: string; description: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-2xl border border-dashed border-white/[0.07] bg-white/[0.01]">
+      <div className="mb-3">{icon}</div>
+      <h3 className="font-display font-semibold text-foreground/60 text-sm mb-1">{title}</h3>
+      <p className="text-xs text-muted-foreground/40 max-w-xs">{description}</p>
+      {action}
     </div>
   );
 }
