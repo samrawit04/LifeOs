@@ -117,7 +117,7 @@ export class LifeOSChat {
       parts: [{ text: msg.text }],
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
     const res = await fetch(url, {
       method: "POST",

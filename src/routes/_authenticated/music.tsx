@@ -827,14 +827,14 @@ function MusicPage() {
                             key={item.id}
                             onClick={() => handlePlayPlaylistItem(index)}
                             className={cn(
-                              "group flex items-center gap-2.5 rounded-xl border p-2 transition cursor-pointer bg-white/[0.02]",
-                              active ? "border-primary/40 bg-primary/10" : "border-white/5 hover:border-white/15 hover:bg-white/5"
+                              "group relative flex items-center gap-2.5 rounded-xl border p-2 transition cursor-pointer select-none",
+                              active ? "border-primary/40 bg-primary/10" : "border-white/5 bg-white/[0.02] hover:border-white/15 hover:bg-white/5"
                             )}
                           >
 
-                            <span className="text-xs font-bold text-muted-foreground w-4 text-center shrink-0">{index + 1}</span>
+                            <span className="text-xs font-bold text-muted-foreground w-4 text-center shrink-0 pointer-events-none">{index + 1}</span>
 
-                            <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-black">
+                            <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-black pointer-events-none">
                               <img src={item.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
                               {active && isPlaying && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -848,7 +848,7 @@ function MusicPage() {
                               )}
                             </div>
 
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 pointer-events-none">
                               <p
                                 className={cn("line-clamp-1 text-xs font-semibold leading-tight", active ? "text-primary" : "text-foreground")}
                                 dangerouslySetInnerHTML={{ __html: item.title }}
@@ -856,24 +856,24 @@ function MusicPage() {
                               <p className="truncate text-[10px] text-muted-foreground mt-0.5">{item.channelName}</p>
                             </div>
 
-                            {/* Controls — stopPropagation prevents triggering play */}
-                            <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition" onClick={(e) => e.stopPropagation()}>
+                            {/* Controls — hidden until hover, each button stops propagation */}
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={(e) => handleMoveItem(index, "up", e)}
+                                onClick={(e) => { e.stopPropagation(); handleMoveItem(index, "up", e); }}
                                 disabled={index === 0}
                                 className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-20 transition"
                               >
                                 <ChevronUp className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={(e) => handleMoveItem(index, "down", e)}
+                                onClick={(e) => { e.stopPropagation(); handleMoveItem(index, "down", e); }}
                                 disabled={index === playlistItems.length - 1}
                                 className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-20 transition"
                               >
                                 <ChevronDown className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={(e) => handleRemoveFromPlaylist(item.id, e)}
+                                onClick={(e) => { e.stopPropagation(); handleRemoveFromPlaylist(item.id, e); }}
                                 className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-white/10 hover:text-red-400 transition"
                                 title="Remove from playlist"
                               >
