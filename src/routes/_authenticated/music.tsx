@@ -249,7 +249,10 @@ function VideoCard({
 
 // ─── Main Music Page ──────────────────────────────────────────────────────────
 function MusicPage() {
-  const { currentVideo, isPlaying, play, next, playPlaylist, queue } = useMusicPlayer();
+  const {
+    currentVideo, isPlaying, play, next, playPlaylist, queue,
+    isShuffle, isRepeat, toggleShuffle, toggleRepeat
+  } = useMusicPlayer();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistItems, setPlaylistItems] = useState<PlaylistItem[]>([]);
@@ -263,20 +266,6 @@ function MusicPage() {
 
   const youtubeApiKey = import.meta.env.VITE_YOUTUBE_API_KEY || "";
 
-  // ── Autoplay: detect YouTube video end via postMessage ───────────────────────
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes("youtube.com")) return;
-      try {
-        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.event === "onStateChange" && data?.info === 0) next();
-      } catch {
-        // ignore
-      }
-    };
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [next]);
 
   useEffect(() => { loadPlaylists(); }, []);
 
@@ -442,31 +431,42 @@ function MusicPage() {
   return (
     <div className="min-h-screen bg-cozy-grain text-foreground pb-12">
 
-      {/* ── Top Bar ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-sidebar-border bg-sidebar/80 px-4 py-3 backdrop-blur-xl lg:px-8">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/20 ring-1 ring-primary/40 shadow-soft">
-            <Headphones className="h-5 w-5 text-primary" />
+      {/* ── Top Header Bar ── */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-b border-white/5 px-4 sm:px-6 py-3 sm:py-4 bg-background/40 backdrop-blur-md">
+        {/* Title row — contains title and new playlist button on mobile */}
+        <div className="flex items-center justify-between gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary to-accent font-bold text-primary-foreground shadow-md shrink-0">
+              <Headphones className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-base sm:text-lg font-bold text-gradient-primary">Music & Focus</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">LifeOS Soundscape</span>
+            </div>
           </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-display text-lg font-bold text-gradient-primary">Music & Focus</span>
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">LifeOS Soundscape</span>
-          </div>
+
+          <Button
+            size="sm"
+            onClick={() => setShowCreateModal(true)}
+            className="md:hidden rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5 shadow-sm shrink-0"
+          >
+            <FolderPlus className="h-3.5 w-3.5" /> <span className="hidden xs:inline">New Playlist</span>
+          </Button>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar — takes full width on mobile so input text is spacious & readable */}
         <form
           onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-          className="flex flex-1 max-w-2xl mx-6 items-center"
+          className="flex w-full md:flex-1 md:max-w-2xl md:mx-4 items-center"
         >
-          <div className="relative flex flex-1 items-center">
-            <Search className="absolute left-3.5 text-muted-foreground h-4 w-4 pointer-events-none" />
+          <div className="relative flex flex-1 items-center min-w-0">
+            <Search className="absolute left-3 text-muted-foreground h-4 w-4 pointer-events-none shrink-0" />
             <input
               type="text"
               placeholder="Search YouTube music, artists, lofi, rain..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-full rounded-l-xl border border-white/10 bg-white/[0.04] pl-10 pr-8 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition"
+              className="h-10 w-full rounded-l-xl border border-white/10 bg-white/[0.04] pl-9 pr-8 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition"
             />
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery("")} className="absolute right-3 text-muted-foreground hover:text-foreground">
@@ -477,7 +477,7 @@ function MusicPage() {
           <Button
             type="submit"
             disabled={isSearching}
-            className="h-10 rounded-r-xl rounded-l-none border border-l-0 border-white/10 bg-primary/20 px-5 text-primary hover:bg-primary/30 transition disabled:opacity-50"
+            className="h-10 rounded-r-xl rounded-l-none border border-l-0 border-white/10 bg-primary/20 px-4 sm:px-5 text-primary hover:bg-primary/30 transition disabled:opacity-50 shrink-0"
           >
             {isSearching
               ? <span className="h-4 w-4 rounded-full border-2 border-primary border-r-transparent animate-spin" />
@@ -488,7 +488,7 @@ function MusicPage() {
         <Button
           size="sm"
           onClick={() => setShowCreateModal(true)}
-          className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5 shadow-sm"
+          className="hidden md:flex rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5 shadow-sm shrink-0"
         >
           <FolderPlus className="h-3.5 w-3.5" /> New Playlist
         </Button>
@@ -532,7 +532,7 @@ function MusicPage() {
           <div className="space-y-4 min-w-0">
 
             {/* Tab Navigation */}
-            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto scrollbar-none">
               {(["player", "search", "curated"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -796,10 +796,24 @@ function MusicPage() {
                       <p className="text-xs text-muted-foreground">{playlistItems.length} songs in queue</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-white/10 hover:text-foreground">
+                      <button
+                        onClick={toggleShuffle}
+                        className={cn(
+                          "grid h-7 w-7 place-items-center rounded-lg transition",
+                          isShuffle ? "text-primary bg-primary/20 border border-primary/20" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                        )}
+                        title="Shuffle queue"
+                      >
                         <Shuffle className="h-3.5 w-3.5" />
                       </button>
-                      <button className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground hover:bg-white/10 hover:text-foreground">
+                      <button
+                        onClick={toggleRepeat}
+                        className={cn(
+                          "grid h-7 w-7 place-items-center rounded-lg transition",
+                          isRepeat ? "text-primary bg-primary/20 border border-primary/20" : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                        )}
+                        title="Repeat current"
+                      >
                         <Repeat className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -856,8 +870,8 @@ function MusicPage() {
                               <p className="truncate text-[10px] text-muted-foreground mt-0.5">{item.channelName}</p>
                             </div>
 
-                            {/* Controls — hidden until hover, each button stops propagation */}
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Controls — visible on mobile/touch, hover-revealed on desktop */}
+                            <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleMoveItem(index, "up", e); }}
                                 disabled={index === 0}

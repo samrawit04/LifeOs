@@ -45,10 +45,10 @@ function TasksPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-10">
       <header className="mb-6">
         <h1 className="font-display text-3xl text-lagoon flex items-center gap-2">
-          <CheckSquare className="h-6 w-6 text-blossom" /> Tasks
+          <CheckSquare className="h-6 w-6 text-primary" /> Tasks
         </h1>
         <p className="text-sm text-muted-foreground">Small wins add up.</p>
       </header>

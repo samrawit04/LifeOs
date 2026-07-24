@@ -53,32 +53,36 @@ function CalendarPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
+      <header className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="flex items-center gap-2 font-display text-3xl text-lagoon">
-            <CalendarDays className="h-6 w-6 text-blossom" /> Calendar
+          <h1 className="flex items-center gap-2 font-display text-2xl sm:text-3xl text-lagoon">
+            <CalendarDays className="h-5.5 w-5.5 sm:h-6 sm:w-6 text-primary" /> Calendar
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {view === "month" && format(cursor, "MMMM yyyy")}
             {view === "week" && `Week of ${format(startOfWeek(cursor), "MMM d")}`}
             {view === "day" && format(cursor, "EEEE, MMMM d")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Tabs value={view} onValueChange={(v) => setView(v as View)}>
-            <TabsList>
-              <TabsTrigger value="month">Month</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="day">Day</TabsTrigger>
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+          <Tabs value={view} onValueChange={(v) => setView(v as View)} className="w-full md:w-auto">
+            <TabsList className="w-full md:w-auto grid grid-cols-3 h-8 p-0.5">
+              <TabsTrigger value="month" className="text-xs py-1 h-7">Month</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs py-1 h-7">Week</TabsTrigger>
+              <TabsTrigger value="day" className="text-xs py-1 h-7">Day</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" size="icon" onClick={() => shift(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
-          <Button variant="outline" size="icon" onClick={() => shift(1)}><ChevronRight className="h-4 w-4" /></Button>
-          <Button className="bg-lagoon text-cream hover:bg-lagoon/90" onClick={() => openNew(new Date())}>
-            <Plus className="h-4 w-4" /> Event
-          </Button>
+          <div className="flex items-center gap-1 w-full md:w-auto justify-between md:justify-start mt-1 md:mt-0">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 w-8 px-0" onClick={() => shift(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs px-2.5" onClick={() => setCursor(new Date())}>Today</Button>
+              <Button variant="outline" size="sm" className="h-8 w-8 px-0" onClick={() => shift(1)}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+            <Button size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90 h-8 text-xs font-semibold px-3" onClick={() => openNew(new Date())}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Event
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -116,9 +120,12 @@ function MonthGrid({
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-soft">
-      <div className="grid grid-cols-7 border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-clay">
+      <div className="grid grid-cols-7 border-b bg-muted/40 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-clay">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="px-3 py-2 text-center">{d}</div>
+          <div key={d} className="px-1.5 sm:px-3 py-2 text-center">
+            <span className="block sm:hidden">{d.charAt(0)}</span>
+            <span className="hidden sm:block">{d}</span>
+          </div>
         ))}
       </div>
       <div className="grid grid-cols-7">
@@ -131,15 +138,17 @@ function MonthGrid({
               key={d.toISOString()}
               onClick={() => onDayClick(d)}
               className={cn(
-                "min-h-[110px] border-b border-r p-2 text-left transition hover:bg-accent/20",
+                "min-h-[64px] sm:min-h-[110px] border-b border-r p-1 sm:p-2 text-left transition hover:bg-accent/20",
                 !inMonth && "bg-muted/20 text-muted-foreground",
               )}
             >
-              <div className={cn("mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+              <div className={cn("mb-1 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[10px] sm:text-xs font-semibold",
                 today ? "bg-lagoon text-cream" : "text-lagoon/80")}>
                 {format(d, "d")}
               </div>
-              <div className="space-y-1">
+
+              {/* Desktop view: full tags */}
+              <div className="hidden sm:block space-y-1">
                 {evs.slice(0, 3).map((e) => (
                   <div
                     key={e.id}
@@ -151,6 +160,21 @@ function MonthGrid({
                   </div>
                 ))}
                 {evs.length > 3 && <div className="text-[10px] text-muted-foreground">+{evs.length - 3} more</div>}
+              </div>
+
+              {/* Mobile view: compact dot indicators */}
+              <div className="flex sm:hidden flex-wrap items-center justify-center gap-0.5 max-w-full overflow-hidden mt-0.5">
+                {evs.slice(0, 4).map((e) => (
+                  <span
+                    key={e.id}
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: e.color ?? folderColor(e.folder_id) }}
+                    title={e.title ?? undefined}
+                  />
+                ))}
+                {evs.length > 4 && (
+                  <span className="text-[8px] font-bold text-muted-foreground">+</span>
+                )}
               </div>
             </button>
           );

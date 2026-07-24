@@ -2,10 +2,68 @@ import { useEffect, useRef, useState } from "react";
 import { useMusicPlayer } from "@/lib/music-player-context";
 import { useRouterState } from "@tanstack/react-router";
 
+// Augment Window to include YT types
+declare global {
+  interface Window {
+    YT: {
+      Player: new (
+        el: HTMLElement | string,
+        opts: {
+          width?: number | string;
+          height?: number | string;
+          videoId?: string;
+          playerVars?: Record<string, unknown>;
+          events?: {
+            onReady?: (e: { target: YTPlayer }) => void;
+            onStateChange?: (e: { data: number }) => void;
+          };
+        }
+      ) => YTPlayer;
+      PlayerState: { ENDED: number; PLAYING: number; PAUSED: number };
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+interface YTPlayer {
+  playVideo(): void;
+  pauseVideo(): void;
+  loadVideoById(videoId: string): void;
+  destroy(): void;
+}
+
+let ytApiLoading = false;
+let ytApiLoaded = false;
+const ytReadyCallbacks: Array<() => void> = [];
+
+function loadYouTubeApi(onReady: () => void) {
+  if (ytApiLoaded) { onReady(); return; }
+  ytReadyCallbacks.push(onReady);
+  if (ytApiLoading) return;
+  ytApiLoading = true;
+
+  const prev = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = () => {
+    ytApiLoaded = true;
+    ytApiLoading = false;
+    if (prev) prev();
+    ytReadyCallbacks.forEach((cb) => cb());
+    ytReadyCallbacks.length = 0;
+  };
+
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+}
+
 export function GlobalAudioPlayer() {
   const { currentVideo, isPlaying, next } = useMusicPlayer();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
+  const playerDivId = useRef(`yt-player-${Math.random().toString(36).slice(2)}`);
+  const currentVideoIdRef = useRef<string | null>(null);
+  const nextRef = useRef(next);
+  nextRef.current = next;
   const [slotRect, setSlotRect] = useState<{
     top: number;
     left: number;
@@ -13,38 +71,76 @@ export function GlobalAudioPlayer() {
     height: number;
   } | null>(null);
 
-  // YouTube postMessage API listener for autoplay next track
+  // Create/destroy the YT.Player once on mount
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes("youtube.com")) return;
-      try {
-        const data =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.event === "onStateChange" && data?.info === 0) {
-          next();
-        }
-      } catch {
-        // ignore
-      }
+    let destroyed = false;
+
+    loadYouTubeApi(() => {
+      if (destroyed) return;
+
+      const player = new window.YT.Player(playerDivId.current, {
+        width: "100%",
+        height: "100%",
+        videoId: currentVideo?.videoId ?? "",
+        playerVars: {
+          autoplay: 1,
+          controls: 1,
+          modestbranding: 1,
+          rel: 0,
+          playsinline: 1,
+        },
+        events: {
+          onReady: (e) => {
+            playerRef.current = e.target;
+            // Style the generated iframe to fill container
+            const iframe = document.getElementById(playerDivId.current)?.querySelector("iframe");
+            if (iframe) {
+              iframe.style.width = "100%";
+              iframe.style.height = "100%";
+              iframe.style.border = "none";
+            }
+            if (currentVideo) {
+              currentVideoIdRef.current = currentVideo.videoId;
+              if (isPlaying) e.target.playVideo();
+              else e.target.pauseVideo();
+            }
+          },
+          onStateChange: (e) => {
+            // 0 = ENDED
+            if (e.data === 0) {
+              nextRef.current();
+            }
+          },
+        },
+      });
+      playerRef.current = player;
+    });
+
+    return () => {
+      destroyed = true;
+      try { playerRef.current?.destroy(); } catch { /* ignore */ }
+      playerRef.current = null;
     };
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [next]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once
 
-  // Command YouTube iframe to play or pause when context isPlaying or currentVideo changes
+  // Load new video or play/pause when state changes
   useEffect(() => {
-    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
-    const command = isPlaying ? "playVideo" : "pauseVideo";
-    try {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: command, args: [] }),
-        "*"
-      );
-    } catch {
-      // ignore
-    }
-  }, [isPlaying, currentVideo]);
+    if (!playerRef.current || !currentVideo) return;
 
+    if (currentVideoIdRef.current !== currentVideo.videoId) {
+      // New video — load it (autoplay happens automatically)
+      currentVideoIdRef.current = currentVideo.videoId;
+      playerRef.current.loadVideoById(currentVideo.videoId);
+    } else {
+      // Same video — just play or pause
+      if (isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
+      }
+    }
+  }, [currentVideo, isPlaying]);
 
   // Track position of #music-player-slot on /music page
   useEffect(() => {
@@ -57,12 +153,7 @@ export function GlobalAudioPlayer() {
       const slot = document.getElementById("music-player-slot");
       if (slot) {
         const rect = slot.getBoundingClientRect();
-        setSlotRect({
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-        });
+        setSlotRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
       } else {
         setSlotRect(null);
       }
@@ -81,8 +172,6 @@ export function GlobalAudioPlayer() {
   }, [pathname]);
 
   if (!currentVideo) return null;
-
-  const iframeSrc = `https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
 
   const isVisibleOnMusicPage =
     pathname === "/music" && slotRect && slotRect.width > 0 && slotRect.height > 0;
@@ -114,14 +203,10 @@ export function GlobalAudioPlayer() {
             }
       }
     >
-      <iframe
-        ref={iframeRef}
-        key={currentVideo.videoId}
-        src={iframeSrc}
-        title={currentVideo.title}
-        className="h-full w-full border-0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
+      {/* YT.Player mounts inside this div */}
+      <div
+        id={playerDivId.current}
+        style={{ width: "100%", height: "100%" }}
       />
     </div>
   );

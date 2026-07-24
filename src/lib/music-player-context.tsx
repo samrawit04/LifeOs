@@ -21,6 +21,8 @@ interface MusicPlayerState {
   currentIndex: number;
   isPlaying: boolean;
   isMiniPlayerVisible: boolean;
+  isShuffle: boolean;
+  isRepeat: boolean;
 }
 
 interface MusicPlayerActions {
@@ -32,6 +34,8 @@ interface MusicPlayerActions {
   resume: () => void;
   dismiss: () => void;
   addToQueue: (video: VideoInfo) => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
 }
 
 const MusicPlayerContext = createContext<
@@ -45,22 +49,25 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     currentIndex: 0,
     isPlaying: false,
     isMiniPlayerVisible: false,
+    isShuffle: false,
+    isRepeat: false,
   });
 
-  // Stable ref so callbacks don't stale-close over state
+  // Keep a stable ref so callbacks don't stale-close over state
   const stateRef = useRef(state);
   stateRef.current = state;
 
   const play = useCallback((video: VideoInfo, queue?: VideoInfo[], startIndex?: number) => {
     const q = queue ?? [video];
     const idx = typeof startIndex === "number" ? startIndex : q.findIndex((v) => v.videoId === video.videoId);
-    setState({
+    setState((s) => ({
+      ...s,
       currentVideo: video,
       queue: q,
       currentIndex: idx >= 0 ? idx : 0,
       isPlaying: true,
       isMiniPlayerVisible: true,
-    });
+    }));
   }, []);
 
   const playPlaylist = useCallback(
@@ -72,11 +79,24 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     [play],
   );
 
-
   const next = useCallback(() => {
-    const { queue, currentIndex } = stateRef.current;
+    const { queue, currentIndex, isShuffle, isRepeat } = stateRef.current;
     if (!queue.length) return;
-    const nextIdx = (currentIndex + 1) % queue.length;
+
+    let nextIdx = currentIndex;
+
+    if (isRepeat) {
+      // Repeat current track: keep same index
+    } else if (isShuffle && queue.length > 1) {
+      // Choose random index different from current index
+      do {
+        nextIdx = Math.floor(Math.random() * queue.length);
+      } while (nextIdx === currentIndex);
+    } else {
+      // Normal sequential play
+      nextIdx = (currentIndex + 1) % queue.length;
+    }
+
     setState((s) => ({
       ...s,
       currentVideo: queue[nextIdx],
@@ -86,9 +106,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const prev = useCallback(() => {
-    const { queue, currentIndex } = stateRef.current;
+    const { queue, currentIndex, isShuffle, isRepeat } = stateRef.current;
     if (!queue.length) return;
-    const prevIdx = (currentIndex - 1 + queue.length) % queue.length;
+
+    let prevIdx = currentIndex;
+
+    if (isRepeat) {
+      // Repeat current track
+    } else if (isShuffle && queue.length > 1) {
+      do {
+        prevIdx = Math.floor(Math.random() * queue.length);
+      } while (prevIdx === currentIndex);
+    } else {
+      prevIdx = (currentIndex - 1 + queue.length) % queue.length;
+    }
+
     setState((s) => ({
       ...s,
       currentVideo: queue[prevIdx],
@@ -118,9 +150,29 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, queue: [...s.queue, video] }));
   }, []);
 
+  const toggleShuffle = useCallback(() => {
+    setState((s) => ({ ...s, isShuffle: !s.isShuffle }));
+  }, []);
+
+  const toggleRepeat = useCallback(() => {
+    setState((s) => ({ ...s, isRepeat: !s.isRepeat }));
+  }, []);
+
   return (
     <MusicPlayerContext.Provider
-      value={{ ...state, play, playPlaylist, next, prev, pause, resume, dismiss, addToQueue }}
+      value={{
+        ...state,
+        play,
+        playPlaylist,
+        next,
+        prev,
+        pause,
+        resume,
+        dismiss,
+        addToQueue,
+        toggleShuffle,
+        toggleRepeat,
+      }}
     >
       {children}
     </MusicPlayerContext.Provider>

@@ -378,7 +378,7 @@ function ExpensesPage() {
         </div>
 
         {/* Tab Controls for Simplified View */}
-        <div className="flex border border-white/10 bg-white/[0.02] p-1 rounded-xl text-xs gap-1">
+        <div className="flex border border-white/10 bg-white/[0.02] p-1 rounded-xl text-xs gap-1 overflow-x-auto scrollbar-none max-w-full">
           <button
             onClick={() => setActiveTab("log")}
             className={cn(

@@ -89,12 +89,12 @@ function Landing() {
             <div className="pointer-events-none absolute -left-10 top-20 h-40 w-56 rotate-[-6deg] rounded-2xl bg-note-yellow p-4 shadow-note">
               <p className="text-xs font-semibold uppercase tracking-wider text-black/60">Idea</p>
               <p className="mt-2 font-display text-lg text-black/85">
-                Sunday brunch — invite Amy & Jonas
+                Sunday brunch — invite  ruth & Jonas
               </p>
             </div>
             <div className="pointer-events-none absolute right-4 top-8 h-36 w-52 rotate-[5deg] rounded-2xl bg-note-pink p-4 shadow-note">
               <p className="text-xs font-semibold uppercase tracking-wider text-black/60">Urgent</p>
-              <p className="mt-2 font-display text-lg text-black/85">Reply to Tom before 3pm</p>
+              <p className="mt-2 font-display text-lg text-black/85">Reply to joseph, before 3pm</p>
             </div>
             <div className="pointer-events-none absolute bottom-8 left-14 h-32 w-48 rotate-[-2deg] rounded-2xl bg-note-blue p-4 shadow-note">
               <p className="text-xs font-semibold uppercase tracking-wider text-black/60">Reference</p>
