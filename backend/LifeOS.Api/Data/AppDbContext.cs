@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<Playlist> Playlists => Set<Playlist>();
     public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -112,6 +113,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(pi => pi.Title).HasMaxLength(500);
             e.Property(pi => pi.Thumbnail).HasMaxLength(500);
             e.Property(pi => pi.ChannelName).HasMaxLength(200);
+        });
+        // ── Notification ──────────────────────────────────────────────────
+        model.Entity<Notification>(e =>
+        {
+            e.HasKey(n => n.Id);
+            e.HasOne(n => n.User)
+             .WithMany(u => u.Notifications)
+             .HasForeignKey(n => n.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(n => n.Category).HasMaxLength(50).HasDefaultValue("general");
+            e.Property(n => n.Title).HasMaxLength(300).IsRequired();
+            e.Property(n => n.Body).HasMaxLength(1000);
+            e.Property(n => n.Icon).HasMaxLength(10);
+            e.Property(n => n.Link).HasMaxLength(300);
+            e.HasIndex(n => new { n.UserId, n.CreatedAt });
         });
     }
 

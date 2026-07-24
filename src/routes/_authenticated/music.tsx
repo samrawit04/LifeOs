@@ -85,7 +85,7 @@ const SEARCH_SUGGESTIONS = [
   "Jazz Rain Ambience",
   "Deep Focus Techno",
   "coders music",
-  "holy song",
+  "holy song ethiopia",
   "podcasts"
 ];
 

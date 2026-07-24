@@ -29,6 +29,18 @@ export interface PlaylistItem {
   addedAt: string;
 }
 
+export interface AppNotification {
+  id: string;
+  userId: string;
+  category: string;
+  title: string;
+  body: string;
+  icon?: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 class ApiClient {
   private get baseUrl() {
     return import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -197,6 +209,33 @@ class ApiClient {
     reorderItems: (id: string, items: { id: string; position: number }[]): Promise<void> => {
       return this.patch<void>(`/api/playlists/${id}/items/reorder`, { items });
     },
+  };
+
+  // Notifications Operations
+  notifications = {
+    getAll: (): Promise<AppNotification[]> =>
+      this.get<AppNotification[]>("/api/notifications"),
+
+    create: (n: {
+      category: string;
+      title: string;
+      body: string;
+      icon?: string;
+      link?: string;
+    }): Promise<AppNotification> =>
+      this.post<AppNotification>("/api/notifications", n),
+
+    markRead: (id: string, isRead = true): Promise<AppNotification> =>
+      this.patch<AppNotification>(`/api/notifications/${id}/read`, { isRead }),
+
+    markAllRead: (): Promise<void> =>
+      this.patch<void>("/api/notifications/read-all"),
+
+    delete: (id: string): Promise<void> =>
+      this.delete<void>(`/api/notifications/${id}`),
+
+    deleteAll: (): Promise<void> =>
+      this.delete<void>("/api/notifications"),
   };
 
   // Auth Operations

@@ -44,7 +44,7 @@ function StickyBoard() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-56px)] flex-col lg:h-screen">
+    <div className="flex h-[calc(100vh-56px)] flex-col p-3 sm:p-6 lg:h-screen">
       <header className="flex items-center justify-between border-b border-border/60 bg-background/60 px-6 py-4 backdrop-blur">
         <div>
           <h1 className="font-display text-2xl text-gradient-primary">Sticky board</h1>

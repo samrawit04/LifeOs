@@ -3,6 +3,7 @@ using System;
 using LifeOS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LifeOS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724234409_AddNotificationsTable")]
+    partial class AddNotificationsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -180,53 +183,6 @@ namespace LifeOS.Api.Migrations
                     b.ToTable("Items");
                 });
 
-            modelBuilder.Entity("LifeOS.Api.Models.Notification", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("general");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Icon")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Link")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "CreatedAt");
-
-                    b.ToTable("Notifications");
-                });
-
             modelBuilder.Entity("LifeOS.Api.Models.Playlist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -373,17 +329,6 @@ namespace LifeOS.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("LifeOS.Api.Models.Notification", b =>
-                {
-                    b.HasOne("LifeOS.Api.Models.User", "User")
-                        .WithMany("Notifications")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("LifeOS.Api.Models.Playlist", b =>
                 {
                     b.HasOne("LifeOS.Api.Models.User", "User")
@@ -423,8 +368,6 @@ namespace LifeOS.Api.Migrations
                     b.Navigation("Folders");
 
                     b.Navigation("Items");
-
-                    b.Navigation("Notifications");
 
                     b.Navigation("Playlists");
                 });

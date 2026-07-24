@@ -35,17 +35,17 @@ function Dashboard() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12">
-      <header className="mb-10 flex flex-wrap items-end justify-between gap-6">
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 py-3 sm:py-12">
+      <header className="mb-5 sm:mb-10 flex flex-wrap items-end justify-between gap-4 sm:gap-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             <Sparkles className="h-3 w-3 text-primary" />
             {format(new Date(), "EEEE · MMMM d, yyyy")}
           </div>
-          <h1 className="mt-4 font-display text-5xl font-semibold leading-tight text-gradient-primary sm:text-6xl">
+          <h1 className="mt-2 sm:mt-4 font-display text-3xl font-semibold leading-tight text-gradient-primary sm:text-5xl">
             Good {greeting()}.
           </h1>
-          <p className="mt-2 max-w-xl text-base text-muted-foreground">
+          <p className="mt-1 sm:mt-2 max-w-xl text-xs sm:text-base text-muted-foreground">
             Your quiet corner of the internet — a soft glance at everything on your mind today.
           </p>
         </div>

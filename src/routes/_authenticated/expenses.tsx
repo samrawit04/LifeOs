@@ -364,15 +364,15 @@ function ExpensesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-10">
       {/* Title Header */}
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-6">
+      <header className="mb-4 sm:mb-8 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-muted-foreground">
             <Wallet className="h-3 w-3 text-primary" /> Money OS
           </div>
-          <h1 className="mt-3 font-display text-4xl text-gradient-primary">Expenses</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="mt-1.5 sm:mt-3 font-display text-3xl sm:text-4xl text-gradient-primary">Expenses</h1>
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">
             A simple, calm space to log and analyze your spending.
           </p>
         </div>

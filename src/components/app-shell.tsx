@@ -23,6 +23,8 @@ import { GlobalSearch } from "@/components/global-search";
 import { AiChat } from "@/components/ai-chat";
 import { MiniPlayer } from "@/components/mini-player";
 import { GlobalAudioPlayer } from "@/components/global-audio-player";
+import { NotificationBell } from "@/components/notification-bell";
+import { NotificationPoller } from "@/components/notification-poller";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -76,15 +78,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
-      {/* Floating open button — only visible when sidebar is closed */}
+      {/* Floating top controls — visible when sidebar is closed */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Show sidebar"
-          className="fixed left-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-background/70 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
-        >
-          <Menu className="h-4 w-4" />
-        </button>
+        <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between pointer-events-none">
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Show sidebar"
+            className="pointer-events-auto grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <div className="pointer-events-auto">
+            <NotificationBell />
+          </div>
+        </div>
       )}
 
       <aside
@@ -104,14 +111,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
-          {/* Close button — lives inside the sidebar header, never overlaps page content */}
-          <button
-            onClick={() => setOpen(false)}
-            aria-label="Hide sidebar"
-            className="ml-auto grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
+          {/* Notification Bell */}
+          <div className="ml-auto flex items-center gap-1.5">
+            <NotificationBell />
+            {/* Close button — lives inside the sidebar header, never overlaps page content */}
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Hide sidebar"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="relative px-3">
@@ -181,8 +192,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <main
           className={cn(
-            "min-w-0 flex-1 pt-16 lg:pt-0 transition-[padding] duration-300",
-            !open && "pl-14",
+            "min-w-0 flex-1 pt-12 lg:pt-0 transition-[padding] duration-300",
+            !open && "pl-0 lg:pl-14",
           )}
         >
           {children}
@@ -193,6 +204,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AiChat />
       <MiniPlayer />
       <GlobalAudioPlayer />
+      <NotificationPoller />
     </div>
   );
 }
