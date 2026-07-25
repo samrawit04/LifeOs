@@ -29,6 +29,7 @@ interface YTPlayer {
   playVideo(): void;
   pauseVideo(): void;
   loadVideoById(videoId: string): void;
+  getIframe?(): HTMLIFrameElement;
   destroy(): void;
 }
 
@@ -64,6 +65,7 @@ export function GlobalAudioPlayer() {
   const currentVideoIdRef = useRef<string | null>(null);
   const nextRef = useRef(next);
   nextRef.current = next;
+  const [isReady, setIsReady] = useState(false);
   const [slotRect, setSlotRect] = useState<{
     top: number;
     left: number;
@@ -78,10 +80,9 @@ export function GlobalAudioPlayer() {
     loadYouTubeApi(() => {
       if (destroyed) return;
 
-      const player = new window.YT.Player(playerDivId.current, {
+      new window.YT.Player(playerDivId.current, {
         width: "100%",
         height: "100%",
-        videoId: currentVideo?.videoId ?? "",
         playerVars: {
           autoplay: 1,
           controls: 1,
@@ -91,19 +92,16 @@ export function GlobalAudioPlayer() {
         },
         events: {
           onReady: (e) => {
+            if (destroyed) return;
             playerRef.current = e.target;
-            // Style the generated iframe to fill container
-            const iframe = document.getElementById(playerDivId.current)?.querySelector("iframe");
+            const iframe = e.target.getIframe ? e.target.getIframe() : document.getElementById(playerDivId.current);
             if (iframe) {
               iframe.style.width = "100%";
               iframe.style.height = "100%";
               iframe.style.border = "none";
+              iframe.style.display = "block";
             }
-            if (currentVideo) {
-              currentVideoIdRef.current = currentVideo.videoId;
-              if (isPlaying) e.target.playVideo();
-              else e.target.pauseVideo();
-            }
+            setIsReady(true);
           },
           onStateChange: (e) => {
             // 0 = ENDED
@@ -113,34 +111,38 @@ export function GlobalAudioPlayer() {
           },
         },
       });
-      playerRef.current = player;
     });
 
     return () => {
       destroyed = true;
       try { playerRef.current?.destroy(); } catch { /* ignore */ }
       playerRef.current = null;
+      setIsReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once
 
-  // Load new video or play/pause when state changes
+  // Load new video or play/pause when state changes or player becomes ready
   useEffect(() => {
-    if (!playerRef.current || !currentVideo) return;
+    if (!isReady || !playerRef.current || !currentVideo) return;
 
     if (currentVideoIdRef.current !== currentVideo.videoId) {
-      // New video — load it (autoplay happens automatically)
       currentVideoIdRef.current = currentVideo.videoId;
-      playerRef.current.loadVideoById(currentVideo.videoId);
-    } else {
-      // Same video — just play or pause
-      if (isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
+      if (typeof playerRef.current.loadVideoById === "function") {
+        playerRef.current.loadVideoById(currentVideo.videoId);
       }
     }
-  }, [currentVideo, isPlaying]);
+
+    if (isPlaying) {
+      if (typeof playerRef.current.playVideo === "function") {
+        try { playerRef.current.playVideo(); } catch { /* ignore */ }
+      }
+    } else {
+      if (typeof playerRef.current.pauseVideo === "function") {
+        try { playerRef.current.pauseVideo(); } catch { /* ignore */ }
+      }
+    }
+  }, [currentVideo, isPlaying, isReady]);
 
   // Track position of #music-player-slot on /music page
   useEffect(() => {
