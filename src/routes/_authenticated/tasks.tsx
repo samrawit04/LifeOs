@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { CheckSquare, Plus, Trash2, ArchiveIcon, ChevronDown } from "lucide-react";
+import { CheckSquare, Plus, Trash2, ArchiveIcon, ChevronDown, Loader2 } from "lucide-react";
 import { useCreateItem, useDeleteItem, useFolders, useItems, useUpdateItem } from "@/hooks/use-lifeos";
 import { PRIORITIES, type Item } from "@/lib/lifeos-types";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/tasks")({
 });
 
 function TasksPage() {
-  const { data: items = [] } = useItems();
+  const { data: items = [], isLoading } = useItems();
   const { data: folders = [] } = useFolders();
   const create = useCreateItem();
   const update = useUpdateItem();
@@ -61,8 +61,9 @@ function TasksPage() {
             placeholder="What needs doing?"
             className="flex-1"
           />
-          <Button type="submit" className="bg-lagoon text-cream hover:bg-lagoon/90">
-            <Plus className="h-4 w-4" /> Add
+          <Button type="submit" disabled={create.isPending} className="bg-lagoon text-cream hover:bg-lagoon/90">
+            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {create.isPending ? "Adding…" : "Add"}
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -83,29 +84,39 @@ function TasksPage() {
         </div>
       </form>
 
-      {active.length === 0 && done.length === 0 && (
-        <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
-          A quiet list. Add your first task above.
-        </div>
-      )}
+      {isLoading ? (
+        <ul className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <li key={i} className="h-14 rounded-xl border bg-card animate-skeleton" />
+          ))}
+        </ul>
+      ) : (
+        <>
+          {active.length === 0 && done.length === 0 && (
+            <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
+              A quiet list. Add your first task above.
+            </div>
+          )}
 
-      <ul className="space-y-2">
-        {active.map((t) => (
-          <TaskRow key={t.id} task={t} onChange={(p) => update.mutate({ id: t.id, patch: p })} onDelete={() => del.mutate(t.id)} onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })} />
-        ))}
-      </ul>
-
-      {done.length > 0 && (
-        <Collapsible className="mt-8">
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-lagoon">
-            <ChevronDown className="h-4 w-4" /> Done ({done.length})
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3 space-y-2">
-            {done.map((t) => (
+          <ul className="space-y-2">
+            {active.map((t) => (
               <TaskRow key={t.id} task={t} onChange={(p) => update.mutate({ id: t.id, patch: p })} onDelete={() => del.mutate(t.id)} onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })} />
             ))}
-          </CollapsibleContent>
-        </Collapsible>
+          </ul>
+
+          {done.length > 0 && (
+            <Collapsible className="mt-8">
+              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-lagoon">
+                <ChevronDown className="h-4 w-4" /> Done ({done.length})
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2">
+                {done.map((t) => (
+                  <TaskRow key={t.id} task={t} onChange={(p) => update.mutate({ id: t.id, patch: p })} onDelete={() => del.mutate(t.id)} onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })} />
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </>
       )}
     </div>
   );

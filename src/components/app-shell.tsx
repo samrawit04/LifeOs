@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { useIsFetching } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   StickyNote,
@@ -75,8 +76,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate({ to: "/auth", replace: true });
   };
 
+  const isFetching = useIsFetching();
+
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
+      {/* Global query loading bar */}
+      <div
+        className={cn(
+          "fixed top-0 left-0 right-0 z-[9999] h-[2px] overflow-hidden transition-opacity duration-300",
+          isFetching ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-transparent via-primary to-transparent" />
+      </div>
       {/* Floating top controls — visible when sidebar is closed */}
       {!open && (
         <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between pointer-events-none">

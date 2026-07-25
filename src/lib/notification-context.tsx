@@ -51,6 +51,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: NOTIF_KEY }),
   });
 
+  const createMutRef = useRef(createMut.mutate);
+  createMutRef.current = createMut.mutate;
+
   // ── Mark single read ───────────────────────────────────────────────────────
   const markReadMut = useMutation({
     mutationFn: (id: string) => apiClient.notifications.markRead(id),
@@ -111,9 +114,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback(
     (n: Omit<Notification, "id" | "userId" | "createdAt" | "isRead">) => {
-      createMut.mutate(n);
+      createMutRef.current(n);
     },
-    [createMut]
+    []
   );
 
   return (
@@ -140,6 +143,33 @@ export function useNotifications() {
   return ctx;
 }
 
+// ─── Date helpers for notification deduplication ──────────────────────────────
+function isDateToday(dateStr: string): boolean {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isDateSameMonth(dateStr: string): boolean {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  } catch {
+    return false;
+  }
+}
+
 // ─── Smart poller: generates notifications from live data ────────────────────
 interface SmartPollerProps {
   items: import("@/lib/lifeos-types").Item[];
@@ -154,7 +184,7 @@ export function useNotificationPoller({
   categoryBudgets,
   monthlyBudget,
 }: SmartPollerProps) {
-  const { add } = useNotifications();
+  const { notifications, add } = useNotifications();
   // Track which dedup keys we've already fired this session to avoid duplicate DB writes
   const firedRef = useRef<Set<string>>(new Set());
 
@@ -173,6 +203,13 @@ export function useNotificationPoller({
     for (const ev of upcomingEvents) {
       const key = `event-upcoming-${ev.id}-${now.toDateString()}`;
       if (firedRef.current.has(key)) continue;
+      const alreadyNotified = notifications.some(
+        (n) => n.category === "calendar" && n.body.includes(ev.title || "Untitled") && isDateToday(n.createdAt)
+      );
+      if (alreadyNotified) {
+        firedRef.current.add(key);
+        continue;
+      }
       firedRef.current.add(key);
       const mins = Math.round((new Date(ev.event_date!).getTime() - now.getTime()) / 60000);
       add({ category: "calendar", icon: "📅", title: "Event coming up", body: `${ev.title || "Untitled"} starts in ${mins} min`, link: "/calendar" });
@@ -184,14 +221,19 @@ export function useNotificationPoller({
       const key = `tasks-overdue-${overdueTasks.length}-${now.toDateString()}`;
       if (!firedRef.current.has(key)) {
         firedRef.current.add(key);
-        add({
-          category: "task", icon: "⚠️",
-          title: `${overdueTasks.length} overdue task${overdueTasks.length > 1 ? "s" : ""}`,
-          body: overdueTasks.length === 1
-            ? `"${overdueTasks[0].title || "Untitled"}" is past due`
-            : `${overdueTasks.slice(0, 2).map((t) => t.title || "Untitled").join(", ")}${overdueTasks.length > 2 ? ` and ${overdueTasks.length - 2} more` : ""}`,
-          link: "/tasks",
-        });
+        const alreadyNotified = notifications.some(
+          (n) => n.category === "task" && n.title.includes("overdue task") && isDateToday(n.createdAt)
+        );
+        if (!alreadyNotified) {
+          add({
+            category: "task", icon: "⚠️",
+            title: `${overdueTasks.length} overdue task${overdueTasks.length > 1 ? "s" : ""}`,
+            body: overdueTasks.length === 1
+              ? `"${overdueTasks[0].title || "Untitled"}" is past due`
+              : `${overdueTasks.slice(0, 2).map((t) => t.title || "Untitled").join(", ")}${overdueTasks.length > 2 ? ` and ${overdueTasks.length - 2} more` : ""}`,
+            link: "/tasks",
+          });
+        }
       }
     }
 
@@ -205,12 +247,17 @@ export function useNotificationPoller({
       const key = `tasks-due-today-${dueTodayTasks.length}-${now.toDateString()}`;
       if (!firedRef.current.has(key)) {
         firedRef.current.add(key);
-        add({
-          category: "task", icon: "✅",
-          title: `${dueTodayTasks.length} task${dueTodayTasks.length > 1 ? "s" : ""} due today`,
-          body: dueTodayTasks.slice(0, 2).map((t) => t.title || "Untitled").join(", ") + (dueTodayTasks.length > 2 ? "…" : ""),
-          link: "/tasks",
-        });
+        const alreadyNotified = notifications.some(
+          (n) => n.category === "task" && n.title.includes("due today") && isDateToday(n.createdAt)
+        );
+        if (!alreadyNotified) {
+          add({
+            category: "task", icon: "✅",
+            title: `${dueTodayTasks.length} task${dueTodayTasks.length > 1 ? "s" : ""} due today`,
+            body: dueTodayTasks.slice(0, 2).map((t) => t.title || "Untitled").join(", ") + (dueTodayTasks.length > 2 ? "…" : ""),
+            link: "/tasks",
+          });
+        }
       }
     }
 
@@ -223,13 +270,23 @@ export function useNotificationPoller({
         const key = `expense-over-budget-${now.getMonth()}-${now.getFullYear()}`;
         if (!firedRef.current.has(key)) {
           firedRef.current.add(key);
-          add({ category: "expense", icon: "🚨", title: "Monthly budget exceeded!", body: `You've spent ${Math.round(pct)}% of your ${monthlyBudget.toLocaleString()} Birr budget this month`, link: "/expenses" });
+          const alreadyNotified = notifications.some(
+            (n) => n.category === "expense" && n.title.includes("Monthly budget exceeded") && isDateSameMonth(n.createdAt)
+          );
+          if (!alreadyNotified) {
+            add({ category: "expense", icon: "🚨", title: "Monthly budget exceeded!", body: `You've spent ${Math.round(pct)}% of your ${monthlyBudget.toLocaleString()} Birr budget this month`, link: "/expenses" });
+          }
         }
       } else if (pct >= 80) {
         const key = `expense-budget-80-${now.getMonth()}-${now.getFullYear()}`;
         if (!firedRef.current.has(key)) {
           firedRef.current.add(key);
-          add({ category: "expense", icon: "💰", title: "Budget at 80%", body: `You've used ${Math.round(pct)}% of your monthly budget (${thisMonthTotal.toLocaleString()} / ${monthlyBudget.toLocaleString()} Birr)`, link: "/expenses" });
+          const alreadyNotified = notifications.some(
+            (n) => n.category === "expense" && n.title.includes("Budget at 80%") && isDateSameMonth(n.createdAt)
+          );
+          if (!alreadyNotified) {
+            add({ category: "expense", icon: "💰", title: "Budget at 80%", body: `You've used ${Math.round(pct)}% of your monthly budget (${thisMonthTotal.toLocaleString()} / ${monthlyBudget.toLocaleString()} Birr)`, link: "/expenses" });
+          }
         }
       }
     }
@@ -244,9 +301,14 @@ export function useNotificationPoller({
         const key = `expense-cat-${cat}-${now.getMonth()}-${now.getFullYear()}`;
         if (!firedRef.current.has(key)) {
           firedRef.current.add(key);
-          add({ category: "expense", icon: "💸", title: `${cat} budget ${pct >= 100 ? "exceeded" : "almost full"}`, body: `Spent ${spent.toLocaleString()} of ${budget.toLocaleString()} Birr on ${cat} this month`, link: "/expenses" });
+          const alreadyNotified = notifications.some(
+            (n) => n.category === "expense" && n.title.includes(`${cat} budget`) && isDateSameMonth(n.createdAt)
+          );
+          if (!alreadyNotified) {
+            add({ category: "expense", icon: "💸", title: `${cat} budget ${pct >= 100 ? "exceeded" : "almost full"}`, body: `Spent ${spent.toLocaleString()} of ${budget.toLocaleString()} Birr on ${cat} this month`, link: "/expenses" });
+          }
         }
       }
     }
-  }, [items, expenses, categoryBudgets, monthlyBudget, add]);
+  }, [items, expenses, categoryBudgets, monthlyBudget, notifications, add]);
 }

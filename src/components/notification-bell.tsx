@@ -76,7 +76,15 @@ function NotifItem({
         </div>
         <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
         <p className="text-[9px] sm:text-[10px] text-muted-foreground/60 mt-1">
-          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+          {(() => {
+            try {
+              const d = new Date(n.createdAt);
+              if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "just now";
+              return formatDistanceToNow(d, { addSuffix: true });
+            } catch {
+              return "just now";
+            }
+          })()}
         </p>
       </div>
     </div>

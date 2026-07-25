@@ -41,6 +41,20 @@ export interface AppNotification {
   createdAt: string;
 }
 
+function normalizeNotification(n: any): AppNotification {
+  return {
+    id: n.id,
+    userId: n.userId ?? n.user_id ?? "",
+    category: n.category ?? "general",
+    title: n.title ?? "",
+    body: n.body ?? "",
+    icon: n.icon ?? undefined,
+    link: n.link ?? undefined,
+    isRead: n.isRead ?? n.is_read ?? false,
+    createdAt: n.createdAt ?? n.created_at ?? new Date().toISOString(),
+  };
+}
+
 class ApiClient {
   private get baseUrl() {
     return import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -53,73 +67,119 @@ class ApiClient {
     return null;
   }
 
-  private setToken(token: string | null) {
-    if (typeof window !== "undefined") {
-      if (token) {
-        localStorage.setItem("lifeos_jwt", token);
-      } else {
-        localStorage.removeItem("lifeos_jwt");
-      }
-    }
-  }
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const headers = new Headers(init?.headers);
     if (this.token) {
-      headers.set("Authorization", `Bearer ${this.token}`);
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
-    headers.set("Content-Type", "application/json");
 
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
       headers,
     });
 
-    if (res.status === 401) {
-      this.setToken(null);
-      if (typeof window !== "undefined" && window.location.pathname !== "/auth") {
-        window.location.href = "/auth";
+    if (response.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("lifeos_jwt");
       }
-      throw new Error("Unauthorized");
     }
 
-    if (!res.ok) {
-      let message = "An error occurred";
-      try {
-        const errorData = await res.json();
-        message = errorData.message || message;
-      } catch {}
-      throw new Error(message);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
-    if (res.status === 204) {
+    if (response.status === 204) {
       return {} as T;
     }
 
-    return res.json() as Promise<T>;
+    return response.json();
   }
 
-  get<T>(path: string): Promise<T> {
-    return this.request<T>(path, { method: "GET" });
+  get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
-  post<T>(path: string, body?: any): Promise<T> {
-    return this.request<T>(path, {
+  post<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      body: JSON.stringify(data),
     });
   }
 
-  patch<T>(path: string, body?: any): Promise<T> {
-    return this.request<T>(path, {
+  patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined,
+      body: JSON.stringify(data),
     });
   }
 
-  delete<T>(path: string): Promise<T> {
-    return this.request<T>(path, { method: "DELETE" });
+  delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
+
+  // Auth Operations
+  auth = {
+    signUp: async (data: any): Promise<AuthResponse> => {
+      const res = await this.post<AuthResponse>("/api/auth/register", data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lifeos_jwt", res.token);
+      }
+      return res;
+    },
+
+    signInWithPassword: async (data: any): Promise<AuthResponse> => {
+      const res = await this.post<AuthResponse>("/api/auth/login", data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lifeos_jwt", res.token);
+      }
+      return res;
+    },
+
+    signInWithGoogleCredential: async (credential: string): Promise<AuthResponse> => {
+      const res = await this.post<AuthResponse>("/api/auth/google", { credential });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lifeos_jwt", res.token);
+      }
+      return res;
+    },
+
+    signOut: async (): Promise<void> => {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("lifeos_jwt");
+      }
+    },
+
+    getUser: async (): Promise<User | null> => {
+      if (!this.token) return null;
+      try {
+        return await this.get<User>("/api/auth/me");
+      } catch {
+        return null;
+      }
+    },
+
+    onAuthStateChange: (callback: (event: string) => void) => {
+      const handleStorage = (e: StorageEvent) => {
+        if (e.key === "lifeos_jwt") {
+          callback(e.newValue ? "SIGNED_IN" : "SIGNED_OUT");
+        }
+      };
+      window.addEventListener("storage", handleStorage);
+      return {
+        subscription: {
+          unsubscribe: () => window.removeEventListener("storage", handleStorage),
+        },
+      };
+    },
+  };
 
   // Playlists Operations
   playlists = {
@@ -213,20 +273,26 @@ class ApiClient {
 
   // Notifications Operations
   notifications = {
-    getAll: (): Promise<AppNotification[]> =>
-      this.get<AppNotification[]>("/api/notifications"),
+    getAll: async (): Promise<AppNotification[]> => {
+      const data = await this.get<any[]>("/api/notifications");
+      return data.map(normalizeNotification);
+    },
 
-    create: (n: {
+    create: async (n: {
       category: string;
       title: string;
       body: string;
       icon?: string;
       link?: string;
-    }): Promise<AppNotification> =>
-      this.post<AppNotification>("/api/notifications", n),
+    }): Promise<AppNotification> => {
+      const data = await this.post<any>("/api/notifications", n);
+      return normalizeNotification(data);
+    },
 
-    markRead: (id: string, isRead = true): Promise<AppNotification> =>
-      this.patch<AppNotification>(`/api/notifications/${id}/read`, { isRead }),
+    markRead: async (id: string, isRead = true): Promise<AppNotification> => {
+      const data = await this.patch<any>(`/api/notifications/${id}/read`, { is_read: isRead });
+      return normalizeNotification(data);
+    },
 
     markAllRead: (): Promise<void> =>
       this.patch<void>("/api/notifications/read-all"),
@@ -236,69 +302,6 @@ class ApiClient {
 
     deleteAll: (): Promise<void> =>
       this.delete<void>("/api/notifications"),
-  };
-
-  // Auth Operations
-  auth = {
-    getUser: async (): Promise<User | null> => {
-      if (!this.token) return null;
-      try {
-        return await this.get<User>("/api/auth/me");
-      } catch {
-        return null;
-      }
-    },
-    login: async (email: string, password: string): Promise<AuthResponse> => {
-      const data = await this.post<AuthResponse>("/api/auth/login", { email, password });
-      this.setToken(data.token);
-      this.auth.notifyAuthStateChange("SIGNED_IN");
-      return data;
-    },
-    register: async (email: string, password: string): Promise<AuthResponse> => {
-      const data = await this.post<AuthResponse>("/api/auth/register", { email, password });
-      this.setToken(data.token);
-      this.auth.notifyAuthStateChange("SIGNED_IN");
-      return data;
-    },
-    signOut: async (): Promise<void> => {
-      this.setToken(null);
-      this.auth.notifyAuthStateChange("SIGNED_OUT");
-    },
-    setSessionToken: (token: string) => {
-      this.setToken(token);
-      this.auth.notifyAuthStateChange("SIGNED_IN");
-    },
-    onAuthStateChange: (callback: (event: "SIGNED_IN" | "SIGNED_OUT") => void) => {
-      const handleStorage = (e: StorageEvent) => {
-        if (e.key === "lifeos_jwt") {
-          callback(e.newValue ? "SIGNED_IN" : "SIGNED_OUT");
-        }
-      };
-      if (typeof window !== "undefined") {
-        window.addEventListener("storage", handleStorage);
-        // Also listen to standard custom event for single-tab state change
-        window.addEventListener("lifeos_auth_change", ((e: CustomEvent) => {
-          callback(e.detail);
-        }) as EventListener);
-      }
-      return {
-        subscription: {
-          unsubscribe: () => {
-            if (typeof window !== "undefined") {
-              window.removeEventListener("storage", handleStorage);
-            }
-          },
-        },
-      };
-    },
-    notifyAuthStateChange: (event: "SIGNED_IN" | "SIGNED_OUT") => {
-      if (typeof window !== "undefined") {
-        const key = "lifeos_jwt";
-        const val = localStorage.getItem(key);
-        window.dispatchEvent(new StorageEvent("storage", { key, newValue: val }));
-        window.dispatchEvent(new CustomEvent("lifeos_auth_change", { detail: event }));
-      }
-    }
   };
 }
 
