@@ -20,6 +20,7 @@ import {
   Square,
   Circle,
   FileText,
+  Loader2,
 } from "lucide-react";
 import {
   useCreateFolder,
@@ -121,8 +122,9 @@ function formatDateLabel(dateStr: string): string {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function Notebooks() {
-  const { data: folders = [] } = useFolders();
-  const { data: items = [] } = useItems();
+  const { data: folders = [], isLoading: foldersLoading } = useFolders();
+  const { data: items = [], isLoading: itemsLoading } = useItems();
+  const isLoading = foldersLoading || itemsLoading;
   const createFolder = useCreateFolder();
   const updateFolder = useUpdateFolder();
   const deleteFolder = useDeleteFolder();
@@ -274,9 +276,20 @@ function Notebooks() {
                   className="h-7 w-32 sm:w-44 text-xs border-white/10 bg-white/[0.03]"
                   onKeyDown={(e) => e.key === "Enter" && addRoot()}
                 />
-                <Button onClick={addRoot} size="sm" className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                  <FolderPlus className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Add</span>
+                <Button
+                  onClick={addRoot}
+                  size="sm"
+                  disabled={createFolder.isPending}
+                  className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {createFolder.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <FolderPlus className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">Add</span>
+                    </>
+                  )}
                 </Button>
               </div>
             ) : (
@@ -289,9 +302,20 @@ function Notebooks() {
                   <FolderPlus className="h-3.5 w-3.5 sm:mr-1" />
                   <span className="hidden sm:inline">Sub-notebook</span>
                 </Button>
-                <Button onClick={addPage} size="sm" className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                  <Plus className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">New page</span>
+                <Button
+                  onClick={addPage}
+                  size="sm"
+                  disabled={createItem.isPending}
+                  className="h-7 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {createItem.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">New page</span>
+                    </>
+                  )}
                 </Button>
               </div>
             )}
@@ -318,7 +342,13 @@ function Notebooks() {
                 <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">
                   {selectedFolderId === null ? "My Notebooks" : "Sub-notebooks"}
                 </h2>
-                {currentFolders.length === 0 ? (
+                {isLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-24 rounded-2xl bg-white/[0.04] border border-white/[0.06] animate-skeleton" />
+                    ))}
+                  </div>
+                ) : currentFolders.length === 0 ? (
                   <EmptyState
                     icon={<BookOpen className="h-9 w-9 text-muted-foreground/25" />}
                     title="No notebooks yet"
@@ -346,14 +376,30 @@ function Notebooks() {
             {selectedFolderId !== null && (
               <section>
                 <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">Pages</h2>
-                {pages.length === 0 ? (
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-16 rounded-xl bg-white/[0.04] border border-white/[0.06] animate-skeleton" />
+                    ))}
+                  </div>
+                ) : pages.length === 0 ? (
                   <EmptyState
                     icon={<FileText className="h-9 w-9 text-muted-foreground/25" />}
                     title="No pages yet"
                     description="Start writing your first page."
                     action={
-                      <Button onClick={addPage} size="sm" className="mt-3 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs">
-                        <Plus className="h-3.5 w-3.5 mr-1.5" /> New page
+                      <Button
+                        onClick={addPage}
+                        size="sm"
+                        disabled={createItem.isPending}
+                        className="mt-3 bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs"
+                      >
+                        {createItem.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        New page
                       </Button>
                     }
                   />
@@ -373,15 +419,7 @@ function Notebooks() {
         )}
       </div>
 
-      {/* FAB */}
-      {selectedFolderId !== null && !selectedPage && (
-        <button
-          onClick={addPage}
-          className="fixed bottom-6 right-24 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 text-xs"
-        >
-          <Plus className="h-4 w-4" /> New page
-        </button>
-      )}
+
 
       {/* ── Dialogs ── */}
       <Dialog open={createSubFolderParentId !== null} onOpenChange={(o) => !o && setCreateSubFolderParentId(null)}>
@@ -393,7 +431,9 @@ function Notebooks() {
             </div>
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setCreateSubFolderParentId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Create</Button>
+              <Button type="submit" size="sm" disabled={createFolder.isPending} className="bg-primary text-primary-foreground">
+                {createFolder.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Create"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -408,7 +448,9 @@ function Notebooks() {
             </div>
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setRenameFolderId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Save</Button>
+              <Button type="submit" size="sm" disabled={updateFolder.isPending} className="bg-primary text-primary-foreground">
+                {updateFolder.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

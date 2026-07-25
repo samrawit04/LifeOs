@@ -63,6 +63,8 @@ export function GlobalAudioPlayer() {
   const playerRef = useRef<YTPlayer | null>(null);
   const playerDivId = useRef(`yt-player-${Math.random().toString(36).slice(2)}`);
   const currentVideoIdRef = useRef<string | null>(null);
+  // Queues a video that was requested before the player finished initializing
+  const pendingVideoRef = useRef<string | null>(null);
   const nextRef = useRef(next);
   nextRef.current = next;
   const [isReady, setIsReady] = useState(false);
@@ -73,7 +75,8 @@ export function GlobalAudioPlayer() {
     height: number;
   } | null>(null);
 
-  // Create/destroy the YT.Player once on mount
+  // Create the YT.Player once on mount — with NO initial videoId so it starts
+  // as a blank white player rather than a black broken one.
   useEffect(() => {
     let destroyed = false;
 
@@ -83,8 +86,9 @@ export function GlobalAudioPlayer() {
       new window.YT.Player(playerDivId.current, {
         width: "100%",
         height: "100%",
+        // Intentionally no videoId — prevents the broken black-screen init
         playerVars: {
-          autoplay: 1,
+          autoplay: 0,
           controls: 1,
           modestbranding: 1,
           rel: 0,
@@ -94,14 +98,21 @@ export function GlobalAudioPlayer() {
           onReady: (e) => {
             if (destroyed) return;
             playerRef.current = e.target;
-            const iframe = e.target.getIframe ? e.target.getIframe() : document.getElementById(playerDivId.current);
+            // Style the generated iframe to fill its container
+            const container = document.getElementById(playerDivId.current);
+            const iframe = container?.querySelector("iframe");
             if (iframe) {
               iframe.style.width = "100%";
               iframe.style.height = "100%";
               iframe.style.border = "none";
               iframe.style.display = "block";
             }
-            setIsReady(true);
+            // Play any video that was requested before the player was ready
+            if (pendingVideoRef.current) {
+              currentVideoIdRef.current = pendingVideoRef.current;
+              e.target.loadVideoById(pendingVideoRef.current);
+              pendingVideoRef.current = null;
+            }
           },
           onStateChange: (e) => {
             // 0 = ENDED
@@ -124,9 +135,16 @@ export function GlobalAudioPlayer() {
 
   // Load new video or play/pause when state changes or player becomes ready
   useEffect(() => {
-    if (!isReady || !playerRef.current || !currentVideo) return;
+    if (!currentVideo) return;
+
+    if (!playerRef.current) {
+      // Player not ready yet — queue the video so onReady picks it up
+      pendingVideoRef.current = currentVideo.videoId;
+      return;
+    }
 
     if (currentVideoIdRef.current !== currentVideo.videoId) {
+      // New video — load it (autoplay happens automatically via loadVideoById)
       currentVideoIdRef.current = currentVideo.videoId;
       if (typeof playerRef.current.loadVideoById === "function") {
         playerRef.current.loadVideoById(currentVideo.videoId);
@@ -173,39 +191,48 @@ export function GlobalAudioPlayer() {
     };
   }, [pathname]);
 
-  if (!currentVideo) return null;
+  // Re-measure immediately when a new video starts (the slot may have
+  // just appeared in the DOM for the first time)
+  useEffect(() => {
+    if (pathname !== "/music" || !currentVideo) return;
+    const slot = document.getElementById("music-player-slot");
+    if (slot) {
+      const rect = slot.getBoundingClientRect();
+      setSlotRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+    }
+  }, [currentVideo, pathname]);
 
   const isVisibleOnMusicPage =
-    pathname === "/music" && slotRect && slotRect.width > 0 && slotRect.height > 0;
+    pathname === "/music" && currentVideo && slotRect && slotRect.width > 0 && slotRect.height > 0;
 
   return (
     <div
       style={
         isVisibleOnMusicPage
           ? {
-              position: "fixed",
-              top: `${slotRect.top}px`,
-              left: `${slotRect.left}px`,
-              width: `${slotRect.width}px`,
-              height: `${slotRect.height}px`,
-              zIndex: 25,
-              pointerEvents: "auto",
-              borderRadius: "1rem",
-              overflow: "hidden",
-            }
+            position: "fixed",
+            top: `${slotRect!.top}px`,
+            left: `${slotRect!.left}px`,
+            width: `${slotRect!.width}px`,
+            height: `${slotRect!.height}px`,
+            zIndex: 25,
+            pointerEvents: "auto",
+            borderRadius: "1rem",
+            overflow: "hidden",
+          }
           : {
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              width: "1px",
-              height: "1px",
-              opacity: 0.001,
-              pointerEvents: "none",
-              zIndex: -1,
-            }
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            width: "1px",
+            height: "1px",
+            opacity: 0.001,
+            pointerEvents: "none",
+            zIndex: -1,
+          }
       }
     >
-      {/* YT.Player mounts inside this div */}
+      {/* YT.Player mounts inside this div — always in DOM so the player ref stays alive */}
       <div
         id={playerDivId.current}
         style={{ width: "100%", height: "100%" }}

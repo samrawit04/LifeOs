@@ -245,3 +245,23 @@
     linear-gradient(135deg, oklch(0.78 0.14 160 / 0.6), oklch(0.82 0.12 85 / 0.4), oklch(1 0 0 / 0.05)) border-box;
   border: 1px solid transparent;
 }
+
+/* ── Loading bar animation ─────────────────────────────────────────────────── */
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@utility animate-loading-bar {
+  animation: loading-bar 1.4s ease-in-out infinite;
+}
+
+/* ── Skeleton pulse ────────────────────────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+@utility animate-skeleton {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
