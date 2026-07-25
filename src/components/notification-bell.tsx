@@ -88,14 +88,23 @@ export function NotificationBell() {
     useNotifications();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number }>({ top: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const openPanel = () => {
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    setCoords({ top: rect.bottom + 8, right: Math.max(12, window.innerWidth - rect.right) });
+    const top = rect.bottom + 8;
+    const panelWidth = Math.min(384, window.innerWidth - 24);
+
+    // If button has space to expand rightwards, align left edge
+    if (rect.left + panelWidth <= window.innerWidth - 12) {
+      setCoords({ top, left: Math.max(12, rect.left) });
+    } else {
+      // Otherwise align right edge
+      setCoords({ top, right: Math.max(12, window.innerWidth - rect.right) });
+    }
     setOpen((v) => !v);
   };
 
@@ -143,7 +152,8 @@ export function NotificationBell() {
           style={{
             position: "fixed",
             top: coords.top,
-            right: coords.right,
+            left: coords.left !== undefined ? `${coords.left}px` : undefined,
+            right: coords.right !== undefined ? `${coords.right}px` : undefined,
             maxWidth: "calc(100vw - 24px)",
             zIndex: 9999
           }}

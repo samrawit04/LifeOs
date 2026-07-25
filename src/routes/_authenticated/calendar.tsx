@@ -52,6 +52,17 @@ function CalendarPage() {
     if (view === "day") setCursor((c) => addDays(c, dir));
   };
 
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    return items
+      .filter((i) => !i.archived && ((i.type === "event" && i.event_date && new Date(i.event_date) >= now) || (i.type === "task" && !i.completed && i.due_date && new Date(i.due_date) >= now)))
+      .sort((a, b) => {
+        const dtA = new Date(a.type === "event" ? a.event_date! : a.due_date!).getTime();
+        const dtB = new Date(b.type === "event" ? b.event_date! : b.due_date!).getTime();
+        return dtA - dtB;
+      });
+  }, [items]);
+
   return (
     <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
       <header className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
@@ -59,30 +70,33 @@ function CalendarPage() {
           <h1 className="flex items-center gap-2 font-display text-2xl sm:text-3xl text-lagoon">
             <CalendarDays className="h-5.5 w-5.5 sm:h-6 sm:w-6 text-primary" /> Calendar
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            {view === "month" && format(cursor, "MMMM yyyy")}
-            {view === "week" && `Week of ${format(startOfWeek(cursor), "MMM d")}`}
-            {view === "day" && format(cursor, "EEEE, MMMM d")}
-          </p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Plan your days, weeks and milestones.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
-          <Tabs value={view} onValueChange={(v) => setView(v as View)} className="w-full md:w-auto">
-            <TabsList className="w-full md:w-auto grid grid-cols-3 h-8 p-0.5">
-              <TabsTrigger value="month" className="text-xs py-1 h-7">Month</TabsTrigger>
-              <TabsTrigger value="week" className="text-xs py-1 h-7">Week</TabsTrigger>
-              <TabsTrigger value="day" className="text-xs py-1 h-7">Day</TabsTrigger>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+            <TabsList className="bg-muted/60">
+              <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>
+              <TabsTrigger value="day" className="text-xs">Day</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="flex items-center gap-1 w-full md:w-auto justify-between md:justify-start mt-1 md:mt-0">
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-8 w-8 px-0" onClick={() => shift(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant="outline" size="sm" className="h-8 text-xs px-2.5" onClick={() => setCursor(new Date())}>Today</Button>
-              <Button variant="outline" size="sm" className="h-8 w-8 px-0" onClick={() => shift(1)}><ChevronRight className="h-4 w-4" /></Button>
-            </div>
-            <Button size="sm" className="bg-lagoon text-cream hover:bg-lagoon/90 h-8 text-xs font-semibold px-3" onClick={() => openNew(new Date())}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> Event
+
+          <div className="flex items-center gap-1 border border-white/10 rounded-xl bg-white/[0.03] p-0.5">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => shift(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="px-2 text-xs font-semibold text-foreground">
+              {format(cursor, view === "month" ? "MMMM yyyy" : view === "week" ? "'Week of' MMM d" : "EEEE, MMM d")}
+            </span>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => shift(1)}>
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+
+          <Button onClick={() => openNew(cursor)} className="bg-lagoon text-cream hover:bg-lagoon/90 text-xs gap-1.5 h-9 rounded-xl">
+            <Plus className="h-4 w-4" /> New Event
+          </Button>
         </div>
       </header>
 
@@ -95,6 +109,67 @@ function CalendarPage() {
       {view === "day" && (
         <DayList day={cursor} eventsForDay={eventsForDay} folderColor={folderColor} onEventClick={setEditing} onAdd={() => openNew(cursor)} />
       )}
+
+      {/* ── Upcoming Events List Feature ── */}
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 backdrop-blur">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <h2 className="font-display text-base font-semibold text-foreground">Upcoming Schedule</h2>
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+              {upcomingEvents.length}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => openNew(new Date())}
+            className="h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-medium gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Event
+          </Button>
+        </div>
+
+        {upcomingEvents.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No upcoming events or tasks scheduled. Click "+ Add Event" to plan your day.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {upcomingEvents.map((ev) => {
+              const dt = new Date(ev.type === "event" ? ev.event_date! : ev.due_date!);
+              const color = folderColor(ev.folder_id);
+              return (
+                <div
+                  key={ev.id}
+                  onClick={() => setEditing(ev)}
+                  className="group relative flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-3 transition hover:bg-white/[0.07] hover:border-white/20 cursor-pointer"
+                >
+                  <div
+                    className="h-3 w-3 rounded-full shrink-0 mt-1"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-xs sm:text-sm text-foreground truncate">
+                      {ev.title || "Untitled"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {format(dt, "EEE, MMM d · p")}
+                    </p>
+                    {ev.content && (
+                      <p className="text-[10px] text-muted-foreground/75 truncate mt-1">
+                        {ev.content}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-[10px] capitalize rounded bg-white/5 px-1.5 py-0.5 text-muted-foreground shrink-0">
+                    {ev.type}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <EventDialog
         open={!!selectedDate || !!editing}

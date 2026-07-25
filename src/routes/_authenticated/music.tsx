@@ -352,7 +352,6 @@ function MusicPage() {
   };
 
   const handlePlayPlaylistItem = (index: number) => {
-    console.log("handlePlayPlaylistItem triggered", { index, itemsCount: playlistItems.length });
     if (!playlistItems.length) return;
     const queueVideos: VideoInfo[] = playlistItems.map((item) => ({
       videoId: item.videoId,
@@ -361,13 +360,11 @@ function MusicPage() {
       thumbnail: item.thumbnail,
       durationSeconds: item.durationSeconds,
     }));
-    console.log("queueVideos mapped", queueVideos);
     playPlaylist(queueVideos, index);
     setActiveMainTab("player");
   };
 
   const handleAddToPlaylist = async (video: VideoInfo, playlistId: string) => {
-    console.log("handleAddToPlaylist triggered", { video, playlistId });
     if (selectedPlaylist?.id === playlistId && playlistItems.some((i) => i.videoId === video.videoId)) {
       toast.info("This song is already in this playlist!");
       return;
@@ -384,7 +381,6 @@ function MusicPage() {
   };
 
   const handleRemoveFromPlaylist = async (itemId: string, e: React.MouseEvent) => {
-    console.log("handleRemoveFromPlaylist triggered", { itemId, playlistId: selectedPlaylist?.id });
     e.stopPropagation();
     e.preventDefault();
     if (!selectedPlaylist) return;
@@ -400,7 +396,6 @@ function MusicPage() {
   };
 
   const handleMoveItem = async (index: number, direction: "up" | "down", e: React.MouseEvent) => {
-    console.log("handleMoveItem triggered", { index, direction, playlistId: selectedPlaylist?.id });
     e.stopPropagation();
     e.preventDefault();
     if (!selectedPlaylist) return;
@@ -419,7 +414,6 @@ function MusicPage() {
   };
 
   const playEntirePlaylist = () => {
-    console.log("playEntirePlaylist triggered");
     handlePlayPlaylistItem(0);
   };
 
@@ -497,8 +491,8 @@ function MusicPage() {
 
       {/* ── Quick Search Chips ── */}
       <div className="flex items-center gap-2 overflow-x-auto px-6 py-3 border-b border-white/5 scrollbar-none">
-        <span className="text-xs font-medium text-muted-foreground mr-2 flex items-center gap-1">
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> Quick:
+        <span className="text-xs font-medium text-muted-foreground mr-2">
+          Quick:
         </span>
         {SEARCH_SUGGESTIONS.map((tag) => (
           <button

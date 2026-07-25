@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { format, isToday, isTomorrow, isWithinInterval, addDays, startOfDay } from "date-fns";
-import { StickyNote, NotebookText, CheckSquare, CalendarDays, Pin, Sparkles, ArrowUpRight } from "lucide-react";
+import { StickyNote, NotebookText, CheckSquare, CalendarDays, Pin, ArrowUpRight } from "lucide-react";
 import { useItems } from "@/hooks/use-lifeos";
 import { noteColorCss } from "@/lib/lifeos-types";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,23 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
+
+function parseNotebookSnippet(raw: string | null): string {
+  if (!raw) return "Empty notebook page";
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.blocks)) {
+      const text = parsed.blocks
+        .map((b: any) => (typeof b.content === "string" ? b.content.trim() : ""))
+        .filter(Boolean)
+        .join(" ");
+      return text || "Empty notebook page";
+    }
+  } catch {
+    return raw.trim() || "Empty notebook page";
+  }
+  return raw.trim() || "Empty notebook page";
+}
 
 function Dashboard() {
   const { data: items = [] } = useItems();
@@ -39,7 +56,6 @@ function Dashboard() {
       <header className="mb-5 sm:mb-10 flex flex-wrap items-end justify-between gap-4 sm:gap-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-            <Sparkles className="h-3 w-3 text-primary" />
             {format(new Date(), "EEEE · MMMM d, yyyy")}
           </div>
           <h1 className="mt-2 sm:mt-4 font-display text-3xl font-semibold leading-tight text-gradient-primary sm:text-5xl">
@@ -115,7 +131,7 @@ function Dashboard() {
               {recentPages.map((p) => (
                 <li key={p.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]">
                   <p className="truncate font-medium text-foreground">{p.title || "Untitled"}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.content}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{parseNotebookSnippet(p.content)}</p>
                 </li>
               ))}
             </ul>

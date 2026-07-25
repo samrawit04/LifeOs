@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Pin, Trash2 } from "lucide-react";
+import { Pin, Trash2, Plus } from "lucide-react";
 import { useCreateItem, useDeleteItem, useItems, useUpdateItem } from "@/hooks/use-lifeos";
 import { NOTE_COLORS, noteColor, noteGradient, type Item } from "@/lib/lifeos-types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/sticky")({
   component: StickyBoard,
@@ -19,12 +20,11 @@ function StickyBoard() {
   const update = useUpdateItem();
   const del = useDeleteItem();
   const boardRef = useRef<HTMLDivElement>(null);
+  const lastTouchRef = useRef<number>(0);
 
   const notes = items.filter((i) => i.type === "sticky" && !i.archived);
 
-  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("[data-sticky-note]")) return;
+  const spawnNote = (x: number, y: number) => {
     const board = boardRef.current;
     if (!board) return;
     const rect = board.getBoundingClientRect();
@@ -34,8 +34,8 @@ function StickyBoard() {
         type: "sticky",
         content: "",
         color: palette.value,
-        pos_x: e.clientX - rect.left - DEFAULT_W / 2 + board.scrollLeft,
-        pos_y: e.clientY - rect.top - 30 + board.scrollTop,
+        pos_x: Math.max(10, x - rect.left - DEFAULT_W / 2 + board.scrollLeft),
+        pos_y: Math.max(10, y - rect.top - 30 + board.scrollTop),
         width: DEFAULT_W,
         height: DEFAULT_H,
       },
@@ -43,23 +43,60 @@ function StickyBoard() {
     );
   };
 
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-sticky-note]")) return;
+    spawnNote(e.clientX, e.clientY);
+  };
+
+  // Mobile double-tap touch handler
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-sticky-note]")) return;
+    const now = Date.now();
+    if (now - lastTouchRef.current < 300) {
+      const touch = e.changedTouches[0];
+      if (touch) {
+        spawnNote(touch.clientX, touch.clientY);
+      }
+    }
+    lastTouchRef.current = now;
+  };
+
+  const handleAddCenter = () => {
+    const board = boardRef.current;
+    if (!board) return;
+    const rect = board.getBoundingClientRect();
+    spawnNote(rect.left + rect.width / 2, rect.top + rect.height / 3);
+  };
+
   return (
-    <div className="flex h-[calc(100vh-56px)] flex-col p-3 sm:p-6 lg:h-screen">
-      <header className="flex items-center justify-between border-b border-border/60 bg-background/60 px-6 py-4 backdrop-blur">
+    <div className="relative flex h-[calc(100vh-56px)] flex-col p-3 sm:p-6 lg:h-screen">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/60 px-4 sm:px-6 py-3.5 backdrop-blur rounded-2xl mb-3">
         <div>
-          <h1 className="font-display text-2xl text-gradient-primary">Sticky board</h1>
-          <p className="text-sm text-muted-foreground">
-            Double-click anywhere on the board to drop a new note. Drag by the header.
+          <h1 className="font-display text-xl sm:text-2xl text-gradient-primary">Sticky Board</h1>
+          <p className="text-xs text-muted-foreground">
+            Double-click or tap anywhere on the board to drop a note.
           </p>
         </div>
-        <div className="text-xs text-muted-foreground">{notes.length} notes</div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground hidden sm:inline">{notes.length} notes</span>
+          <Button
+            onClick={handleAddCenter}
+            size="sm"
+            className="h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5"
+          >
+            <Plus className="h-4 w-4" /> Add Note
+          </Button>
+        </div>
       </header>
 
       <div
         ref={boardRef}
         onDoubleClick={onDoubleClick}
-        className="relative flex-1 overflow-auto bg-corkboard"
-        style={{ minHeight: 600 }}
+        onTouchEnd={onTouchEnd}
+        className="relative flex-1 overflow-auto bg-corkboard rounded-2xl"
+        style={{ minHeight: 550 }}
       >
         <div className="relative h-[1800px] w-[1800px]">
           {notes.map((n) => (
@@ -73,7 +110,7 @@ function StickyBoard() {
           {notes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
               <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-4 text-center text-sm text-muted-foreground backdrop-blur">
-                Double-click anywhere to drop your first note ✨
+                Double-tap anywhere to drop your first note
               </div>
             </div>
           )}

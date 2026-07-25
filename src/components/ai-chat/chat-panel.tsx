@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Sparkles, X, Send, RotateCcw, AlertCircle } from "lucide-react";
+import { X, Send, RotateCcw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/gemini";
 
@@ -18,7 +18,7 @@ const SUGGESTIONS = [
   "What tasks are due this week?",
   "Am I spending too much?",
   "Help me feel motivated today",
-  "Give me relationship advice",
+  "Summarize my open notes",
 ];
 
 export function ChatPanel({
@@ -71,9 +71,11 @@ export function ChatPanel({
         {/* Subtle shine line */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/30" />
 
-        <div className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-          <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
-        </div>
+        <img
+          src="/logo.png"
+          alt="LifeOS AI"
+          className="h-8 w-8 rounded-xl object-cover border border-white/20 shadow-sm shrink-0"
+        />
 
         <div className="flex-1 leading-tight">
           <p className="font-display text-sm font-bold text-white">LifeOS AI</p>
@@ -105,12 +107,11 @@ export function ChatPanel({
       >
         {isEmpty && (
           <div className="flex flex-col items-center gap-5 pt-6 pb-2 text-center">
-            <div
-              className="grid h-16 w-16 place-items-center rounded-3xl shadow-[0_8px_24px_rgba(22,163,74,0.25)]"
-              style={{ background: "linear-gradient(135deg, #15803d, #4ade80)" }}
-            >
-              <Sparkles className="h-8 w-8 text-white" strokeWidth={1.5} />
-            </div>
+            <img
+              src="/logo.png"
+              alt="LifeOS AI"
+              className="h-16 w-16 rounded-3xl object-cover shadow-[0_8px_24px_rgba(22,163,74,0.25)] border border-emerald-500/20"
+            />
             <div>
               <p className="font-display text-base font-bold text-slate-800">Hey, I'm your AI</p>
               <p className="mt-1 text-xs text-slate-500 leading-relaxed max-w-[240px]">
@@ -143,12 +144,11 @@ export function ChatPanel({
             )}
           >
             {msg.role === "model" && (
-              <div
-                className="mt-1 grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg shadow-sm"
-                style={{ background: "linear-gradient(135deg, #15803d, #4ade80)" }}
-              >
-                <Sparkles className="h-3 w-3 text-white" strokeWidth={2} />
-              </div>
+              <img
+                src="/logo.png"
+                alt="AI"
+                className="mt-1 h-6 w-6 flex-shrink-0 rounded-lg object-cover shadow-sm border border-emerald-500/20"
+              />
             )}
             <div
               className={cn(
@@ -173,12 +173,11 @@ export function ChatPanel({
         {/* Typing indicator */}
         {loading && (
           <div className="flex items-center gap-2">
-            <div
-              className="mt-1 grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg shadow-sm"
-              style={{ background: "linear-gradient(135deg, #15803d, #4ade80)" }}
-            >
-              <Sparkles className="h-3 w-3 text-white" strokeWidth={2} />
-            </div>
+            <img
+              src="/logo.png"
+              alt="AI"
+              className="mt-1 h-6 w-6 flex-shrink-0 rounded-lg object-cover shadow-sm border border-emerald-500/20"
+            />
             <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-white border border-green-100 px-4 py-3 shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-bounce [animation-delay:0ms]" />
               <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-bounce [animation-delay:150ms]" />

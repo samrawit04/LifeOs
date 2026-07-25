@@ -377,51 +377,51 @@ function ExpensesPage() {
           </p>
         </div>
 
-        {/* Tab Controls for Simplified View */}
+        {/* Tab Controls */}
         <div className="flex border border-white/10 bg-white/[0.02] p-1 rounded-xl text-xs gap-1 overflow-x-auto scrollbar-none max-w-full">
           <button
             onClick={() => setActiveTab("log")}
             className={cn(
-              "px-4 py-2 rounded-lg font-semibold transition-all",
+              "px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap",
               activeTab === "log" 
-                ? "bg-primary text-primary-foreground shadow" 
+                ? "bg-primary text-primary-foreground shadow-sm" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            ✍️ Log Spend
+            Log Spend
           </button>
           <button
             onClick={() => setActiveTab("pacing")}
             className={cn(
-              "px-4 py-2 rounded-lg font-semibold transition-all",
+              "px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap",
               activeTab === "pacing" 
-                ? "bg-primary text-primary-foreground shadow" 
+                ? "bg-primary text-primary-foreground shadow-sm" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            📈 Budget Pacing
+            Budget Pacing
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
             className={cn(
-              "px-4 py-2 rounded-lg font-semibold transition-all",
+              "px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap",
               activeTab === "analytics" 
-                ? "bg-primary text-primary-foreground shadow" 
+                ? "bg-primary text-primary-foreground shadow-sm" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            📊 Spend Analytics
+            Spend Analytics
           </button>
           <button
             onClick={() => setActiveTab("wishlist")}
             className={cn(
-              "px-4 py-2 rounded-lg font-semibold transition-all",
+              "px-3.5 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap",
               activeTab === "wishlist" 
-                ? "bg-primary text-primary-foreground shadow" 
+                ? "bg-primary text-primary-foreground shadow-sm" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            🛍️ Planned Purchases
+            Planned Purchases
           </button>
         </div>
       </header>
@@ -721,170 +721,142 @@ function ExpensesPage() {
         </div>
       )}
 
-      {/* ----------------- TAB 3: SPEND ANALYTICS (DETAILED HISTORY & CHARTS) ----------------- */}
+      {/* ----------------- TAB 3: SPEND ANALYTICS (SIMPLE & ELEGANT) ----------------- */}
       {activeTab === "analytics" && (
         <div className="space-y-6">
-          <div className="glass-card rounded-3xl p-6 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="font-display text-lg font-semibold text-lagoon">Expense Analytics</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Filter and visualize spending patterns</p>
-              </div>
-
-              {/* period selector pills */}
-              <div className="flex rounded-lg border border-white/10 bg-white/[0.02] p-1 text-xs">
-                {(["today", "week", "month", "last_month", "all"] as PeriodType[]).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setActivePeriod(p)}
-                    className={cn(
-                      "rounded px-2.5 py-1 font-medium capitalize transition",
-                      activePeriod === p
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {p.replace("_", " ")}
-                  </button>
-                ))}
-              </div>
+          {/* Header & Period Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-foreground">Spend Analytics</h2>
+              <p className="text-xs text-muted-foreground">Select a time period to review your spending patterns.</p>
             </div>
 
-            {/* Total display card */}
-            <div className="bg-gradient-to-br from-primary/10 to-accent/5 border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Spent (Selected Range)</p>
-                <p className="font-display text-3xl font-bold mt-1 text-foreground font-sans">
-                  {totalFiltered.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{CURRENCY}</span>
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Period Items</p>
-                <p className="font-display text-xl font-medium mt-1 text-foreground">{filteredExpenses.length} transactions</p>
-              </div>
+            <div className="flex border border-white/10 bg-white/[0.02] p-1 rounded-xl text-xs gap-1 overflow-x-auto scrollbar-none">
+              {(["today", "week", "month", "last_month", "all"] as PeriodType[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setActivePeriod(p)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium capitalize transition whitespace-nowrap",
+                    activePeriod === p
+                      ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.replace("_", " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3 Summary Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="glass-card rounded-2xl p-4 sm:p-5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Spent</p>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                {totalFiltered.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                <span className="text-xs font-normal text-muted-foreground">{CURRENCY}</span>
+              </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Day-by-Day spend chart */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" /> Daily Spend History
-                </h3>
+            <div className="glass-card rounded-2xl p-4 sm:p-5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Transactions</p>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                {filteredExpenses.length}{" "}
+                <span className="text-xs font-normal text-muted-foreground">entry{filteredExpenses.length === 1 ? "" : "s"}</span>
+              </p>
+            </div>
 
-                {dailySpendData.length === 0 || maxDailySpend === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-xs text-muted-foreground bg-white/[0.01]">
-                    No daily transaction data found for this period.
-                  </div>
+            <div className="glass-card rounded-2xl p-4 sm:p-5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Category</p>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-foreground mt-1 truncate">
+                {byCategory.length > 0 ? (
+                  <>
+                    <span className="mr-1.5">{categoryEmoji(byCategory[0][0])}</span>
+                    {byCategory[0][0]}
+                  </>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="h-32 flex items-end gap-1.5 border-b border-white/10 pb-1">
-                      {dailySpendData.map((d, index) => {
-                        const barPercent = (d.total / maxDailySpend) * 100;
-                        return (
-                          <div 
-                            key={index} 
-                            className="flex-1 flex flex-col items-center group relative cursor-pointer"
-                          >
-                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-white/10 text-[10px] text-foreground font-semibold px-2 py-1 rounded shadow-md z-30 pointer-events-none whitespace-nowrap">
-                              {d.fullName}: {d.total.toFixed(2)} {CURRENCY}
-                            </div>
-                            
-                            <div 
-                              className={cn(
-                                "w-full rounded-t transition-all duration-500",
-                                d.total > 0 ? "bg-primary/80 group-hover:bg-primary" : "bg-white/[0.02]"
-                              )}
-                              style={{ height: `${Math.max(barPercent, 3)}%` }}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <span className="text-muted-foreground/60 text-lg">None</span>
+                )}
+              </p>
+            </div>
+          </div>
 
-                    <div className="flex justify-between px-0.5 text-[9px] font-semibold tracking-wider text-muted-foreground uppercase overflow-x-auto scrollbar-none gap-1">
-                      {dailySpendData.map((d, index) => (
-                        <span key={index} className="flex-1 text-center truncate">
-                          {d.label}
+          {/* Category Breakdown Bars */}
+          <div className="glass-card rounded-3xl p-5 sm:p-6 space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Tag className="h-3.5 w-3.5 text-primary" /> Category Distribution
+            </h3>
+
+            {byCategory.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">No expense entries recorded for this period.</p>
+            ) : (
+              <ul className="space-y-3.5">
+                {byCategory.map(([cat, val]) => {
+                  const pct = totalFiltered > 0 ? (val / totalFiltered) * 100 : 0;
+                  return (
+                    <li key={cat} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                        <span className="flex items-center gap-2 font-medium text-foreground">
+                          <span>{categoryEmoji(cat)}</span>
+                          <span>{cat}</span>
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Category distribution for range */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5" /> Category Share (Selected Period)
-                </h3>
-                {byCategory.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-4 text-center">No category shares found for this period.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {byCategory.map(([cat, val]) => (
-                      <li key={cat}>
-                        <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-2">
-                            <span>{categoryEmoji(cat)}</span>
-                            <span className="text-foreground font-medium">{cat}</span>
-                          </span>
-                          <span className="text-muted-foreground">
-                            {val.toFixed(2)} {CURRENCY} ({((val / totalFiltered) * 100).toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                            style={{ width: `${(val / maxCat) * 100}%` }}
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            {/* Period Transactions List */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Transactions in selected period
-              </h3>
-
-              {filteredExpenses.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">No transactions in this period range.</p>
-              ) : (
-                <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto scrollbar-none pr-1">
-                  {filteredExpenses.map((e) => (
-                    <li key={e.id} className="group flex items-center gap-3 py-2.5">
-                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.04] text-sm">
-                        {categoryEmoji(e.category)}
+                        <span className="text-muted-foreground text-xs font-mono">
+                          {val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {CURRENCY} ({pct.toFixed(0)}%)
+                        </span>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-sm text-foreground">
-                          {e.note || e.category}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {e.category} · {format(new Date(e.occurred_at), "MMM d, yyyy · p")}
-                        </p>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.04]">
+                        <div
+                          className="h-full rounded-full bg-primary/80 transition-all duration-300"
+                          style={{ width: `${(val / maxCat) * 100}%` }}
+                        />
                       </div>
-                      <p className="font-display font-medium text-sm text-foreground font-sans">
-                        {Number(e.amount).toFixed(2)} {CURRENCY}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExpense(e.id)}
-                        disabled={del.isPending}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition cursor-pointer"
-                        title="Delete expense"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
                     </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Transactions History */}
+          <div className="glass-card rounded-3xl p-5 sm:p-6 space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Period Transactions
+            </h3>
+
+            {filteredExpenses.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No transactions found for the selected period.</p>
+            ) : (
+              <ul className="divide-y divide-white/5 max-h-96 overflow-y-auto pr-1">
+                {filteredExpenses.map((e) => (
+                  <li key={e.id} className="group flex items-center gap-3 py-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-base">
+                      {categoryEmoji(e.category)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-xs sm:text-sm text-foreground">
+                        {e.note || e.category}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        {e.category} · {format(new Date(e.occurred_at), "MMM d, yyyy · p")}
+                      </p>
+                    </div>
+                    <p className="font-display font-semibold text-xs sm:text-sm text-foreground shrink-0">
+                      {Number(e.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {CURRENCY}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => del.mutate(e.id)}
+                      disabled={del.isPending}
+                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-400 transition cursor-pointer"
+                      title="Delete expense"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}

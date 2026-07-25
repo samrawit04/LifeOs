@@ -117,40 +117,67 @@ export class LifeOSChat {
       parts: [{ text: msg.text }],
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    // Using active free-tier model aliases (gemini-flash-latest and gemini-flash-lite-latest)
+    const models = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.0-flash"];
+    let lastError: Error | null = null;
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: {
-          parts: [{ text: buildSystemPrompt(this.items, this.expenses) }],
-        },
-      }),
-    });
+    for (const model of models) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const errMsg = errData?.error?.message || `HTTP ${res.status} ${res.statusText}`;
-      // Remove last user message on error so they can retry
-      this.history.pop();
-      throw new Error(errMsg);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: {
+              parts: [{ text: buildSystemPrompt(this.items, this.expenses) }],
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || `HTTP ${res.status} ${res.statusText}`;
+
+          if (res.status === 429 || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("Quota")) {
+            console.warn(`[Gemini] ${model} hit rate limit (429), trying fallback model...`);
+            lastError = new Error(
+              "Gemini API rate limit reached. Free-tier keys allow 15 requests/minute and 1,500/day. " +
+              "Please wait a minute and try again, or get a fresh API key from https://aistudio.google.com/app/apikey " +
+              "(make sure the key starts with 'AIza' — that is the correct Google AI Studio format)."
+            );
+            continue;
+          }
+
+          // Non-quota error — throw immediately with the original message
+          this.history.pop();
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!replyText) {
+          this.history.pop();
+          throw new Error("No response content received from Gemini.");
+        }
+
+        this.history.push({ role: "model", text: replyText });
+        return replyText;
+      } catch (err) {
+        if (err instanceof Error && (err.message.includes("rate limit") || err.message.includes("429") || err.message.includes("Quota"))) {
+          lastError = err;
+          continue;
+        }
+        this.history.pop();
+        throw err;
+      }
     }
 
-    const data = await res.json();
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!replyText) {
-      this.history.pop();
-      throw new Error("No response content received from Gemini.");
-    }
-
-    // Add model response to history
-    this.history.push({ role: "model", text: replyText });
-    return replyText;
+    // All models exhausted their quota
+    this.history.pop();
+    throw lastError || new Error("Gemini API request failed. Check your VITE_GEMINI_API_KEY in .env.");
   }
 
   reset() {

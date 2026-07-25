@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatBubbleButtonProps {
@@ -43,12 +42,13 @@ export function ChatBubbleButton({ open, onClick, hasUnread }: ChatBubbleButtonP
         <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
       )}
 
-      <Sparkles
+      <img
+        src="/logo.png"
+        alt="LifeOS AI"
         className={cn(
-          "h-6 w-6 text-white transition-transform duration-300",
-          !open && "group-hover:rotate-12",
+          "h-7 w-7 rounded-xl object-cover shadow-sm transition-transform duration-300",
+          !open && "group-hover:scale-110",
         )}
-        strokeWidth={2}
       />
     </button>
   );

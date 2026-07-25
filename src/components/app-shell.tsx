@@ -11,7 +11,6 @@ import {
   Search,
   LogOut,
   Menu,
-  Sparkles,
   Wallet,
   PanelLeftClose,
   Music,
@@ -104,9 +103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/15 to-transparent" />
 
         <div className="relative flex h-16 items-center gap-3 px-5">
-          <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-accent font-display text-lg text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)]">
-            <Sparkles className="h-5 w-5" strokeWidth={2.25} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="LifeOS Logo"
+            className="h-10 w-10 rounded-2xl object-cover shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)] border border-white/10"
+          />
           <div className="flex flex-col leading-tight">
             <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>

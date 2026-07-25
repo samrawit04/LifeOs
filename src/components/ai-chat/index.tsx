@@ -42,12 +42,8 @@ export function AiChat() {
     } catch (err: unknown) {
       const msg =
         err instanceof Error
-          ? err.message.includes("VITE_GEMINI_API_KEY")
-            ? "No API key found. Add VITE_GEMINI_API_KEY to your .env file and restart the server."
-            : err.message.includes("API_KEY_INVALID")
-            ? "Invalid API key. Check your VITE_GEMINI_API_KEY in .env."
-            : "Something went wrong. Please try again."
-          : "Something went wrong.";
+          ? err.message
+          : "Something went wrong. Please try again.";
       setError(msg);
     } finally {
       setLoading(false);
