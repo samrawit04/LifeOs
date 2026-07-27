@@ -3,16 +3,10 @@
   "outputDirectory": "dist/client",
   "framework": null,
   "installCommand": "npm install",
-  "functions": {
-    "api/server.js": {
-      "runtime": "nodejs22.x",
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/server"
+      "destination": "/api/handler"
     }
   ]
 }
