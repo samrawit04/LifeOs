@@ -166,6 +166,14 @@ class ApiClient {
       }
     },
 
+    setSessionToken: (token: string): void => {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lifeos_jwt", token);
+        // Dispatch a storage event so onAuthStateChange listeners fire in the same tab
+        window.dispatchEvent(new StorageEvent("storage", { key: "lifeos_jwt", newValue: token }));
+      }
+    },
+
     onAuthStateChange: (callback: (event: string) => void) => {
       const handleStorage = (e: StorageEvent) => {
         if (e.key === "lifeos_jwt") {
