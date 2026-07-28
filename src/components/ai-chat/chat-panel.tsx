@@ -58,8 +58,8 @@ export function ChatPanel({
         "flex flex-col overflow-hidden rounded-3xl",
         "bg-white",
         "shadow-[0_24px_80px_-12px_rgba(22,163,74,0.3),0_0_0_1px_rgba(22,163,74,0.12)]",
+        "w-[calc(100vw-1.5rem)] max-w-[380px] h-[calc(100vh-6.5rem)] max-h-[560px] min-h-[350px]"
       )}
-      style={{ width: 380, height: 560 }}
     >
       {/* Header — green gradient */}
       <div

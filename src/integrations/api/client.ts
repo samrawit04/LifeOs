@@ -303,7 +303,7 @@ class ApiClient {
     },
 
     markAllRead: (): Promise<void> =>
-      this.patch<void>("/api/notifications/read-all"),
+      this.patch<void>("/api/notifications/read-all", {}),
 
     delete: (id: string): Promise<void> =>
       this.delete<void>(`/api/notifications/${id}`),

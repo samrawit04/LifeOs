@@ -197,7 +197,10 @@
     radial-gradient(ellipse 90% 60% at 50% 110%, oklch(0.78 0.14 160 / 0.18), transparent 60%),
     radial-gradient(oklch(1 0 0 / 0.03) 1px, transparent 1px);
   background-size: auto, auto, auto, 22px 22px;
-  background-attachment: fixed, fixed, fixed, fixed;
+  background-attachment: scroll;
+  @media (min-width: 1024px) {
+    background-attachment: fixed, fixed, fixed, fixed;
+  }
 }
 
 @utility bg-corkboard {
