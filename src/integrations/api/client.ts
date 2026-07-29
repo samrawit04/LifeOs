@@ -127,20 +127,30 @@ class ApiClient {
 
   // Auth Operations
   auth = {
-    signUp: async (data: any): Promise<AuthResponse> => {
-      const res = await this.post<AuthResponse>("/api/auth/register", data);
+    login: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
+      const res = await this.post<AuthResponse>("/api/auth/login", payload);
       if (typeof window !== "undefined") {
         localStorage.setItem("lifeos_jwt", res.token);
       }
       return res;
     },
 
-    signInWithPassword: async (data: any): Promise<AuthResponse> => {
-      const res = await this.post<AuthResponse>("/api/auth/login", data);
+    register: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
+      const res = await this.post<AuthResponse>("/api/auth/register", payload);
       if (typeof window !== "undefined") {
         localStorage.setItem("lifeos_jwt", res.token);
       }
       return res;
+    },
+
+    signUp: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      return this.auth.register(emailOrData, password);
+    },
+
+    signInWithPassword: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      return this.auth.login(emailOrData, password);
     },
 
     signInWithGoogleCredential: async (credential: string): Promise<AuthResponse> => {

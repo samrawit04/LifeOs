@@ -435,8 +435,8 @@ function MusicPage() {
               <Headphones className="h-5 w-5" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-display text-base sm:text-lg font-bold text-gradient-primary">Music & Focus</span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">LifeOS Soundscape</span>
+              <span className="font-display text-xl sm:text-3xl font-bold text-gradient-primary">Music & Focus</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">LifeOS Soundscape</span>
             </div>
           </div>
 

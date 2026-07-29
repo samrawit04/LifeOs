@@ -47,10 +47,10 @@ function TasksPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-10">
       <header className="mb-6">
-        <h1 className="font-display text-3xl text-lagoon flex items-center gap-2">
-          <CheckSquare className="h-6 w-6 text-primary" /> Tasks
+        <h1 className="font-display text-xl sm:text-3xl text-lagoon flex items-center gap-2">
+          <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 text-primary" /> Tasks
         </h1>
-        <p className="text-sm text-muted-foreground">Small wins add up.</p>
+        <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">Small wins add up.</p>
       </header>
 
       <form onSubmit={submit} className="mb-8 rounded-2xl border bg-card p-4 shadow-soft">

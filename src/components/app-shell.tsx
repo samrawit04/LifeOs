@@ -14,6 +14,8 @@ import {
   Menu,
   Wallet,
   PanelLeftClose,
+  Sun,
+  Moon,
   Music,
 } from "lucide-react";
 import { apiClient } from "@/integrations/api/client";
@@ -38,14 +40,44 @@ const NAV = [
 ] as const;
 
 const STORAGE_KEY = "lifeos.sidebar.open";
+const THEME_STORAGE_KEY = "lifeos.theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
   // Single open/closed flag used on all breakpoints. Default open on desktop.
   const [open, setOpen] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Derive page title from pathname
+  const pageTitle = (() => {
+    const found = NAV.find((n) => pathname === n.to || pathname.startsWith(n.to + "/"));
+    return found?.label ?? "LifeOS";
+  })();
+
+  // Theme hydration and listener
+  useEffect(() => {
+    const savedTheme = (localStorage.getItem(THEME_STORAGE_KEY) as "dark" | "light") || "dark";
+    setTheme(savedTheme);
+    if (savedTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    if (next === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  };
 
   // Track mobile vs desktop
   useEffect(() => {
@@ -89,18 +121,40 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-transparent via-primary to-transparent" />
       </div>
-      {/* Floating top controls — visible when sidebar is closed */}
+      {/* Floating top bar — visible when sidebar is closed (mobile primarily) */}
       {!open && (
-        <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between pointer-events-none">
+        <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between gap-2 pointer-events-none">
+          {/* Left: Menu button */}
           <button
             onClick={() => setOpen(true)}
             aria-label="Show sidebar"
-            className="pointer-events-auto grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
+            className="pointer-events-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
           >
             <Menu className="h-4 w-4" />
           </button>
-          <div className="pointer-events-auto">
+
+          {/* Center: Current page title */}
+          <span className="flex-1 text-center text-sm font-semibold text-foreground truncate px-2 pointer-events-none">
+            {pageTitle}
+          </span>
+
+          {/* Right: theme + notification + logo */}
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground backdrop-blur-xl transition-all hover:bg-white/10 hover:text-foreground"
+              title={theme === "dark" ? "Switch to Light Mode (Grey & Forest Green)" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
+            </button>
             <NotificationBell />
+            {/* LifeOS logo icon */}
+            <img
+              src="/logo.png"
+              alt="LifeOS"
+              className="h-8 w-8 rounded-xl object-cover border border-white/10 shadow-soft"
+            />
           </div>
         </div>
       )}
@@ -124,10 +178,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
-          {/* Notification Bell */}
+          {/* Controls header — only close button; notification is in the floating top bar */}
           <div className="ml-auto flex items-center gap-1.5">
-            <NotificationBell />
-            {/* Close button — lives inside the sidebar header, never overlaps page content */}
+            {/* Close button */}
             <button
               onClick={() => setOpen(false)}
               aria-label="Hide sidebar"
@@ -179,14 +232,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="relative border-t border-sidebar-border p-3">
+        <div className="relative border-t border-sidebar-border p-3 flex items-center justify-between gap-2">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            className="flex-1 justify-start gap-2 text-muted-foreground hover:text-foreground"
             onClick={signOut}
           >
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to Light Mode (Grey & Forest Green)" : "Switch to Dark Mode"}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
+          </button>
         </div>
       </aside>
 

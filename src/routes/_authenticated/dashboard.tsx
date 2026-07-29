@@ -58,10 +58,10 @@ function Dashboard() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             {format(new Date(), "EEEE · MMMM d, yyyy")}
           </div>
-          <h1 className="mt-2 sm:mt-4 font-display text-3xl font-semibold leading-tight text-gradient-primary sm:text-5xl">
+          <h1 className="mt-2 sm:mt-4 font-display text-xl sm:text-3xl lg:text-4xl font-semibold leading-tight text-gradient-primary">
             Good {greeting()}.
           </h1>
-          <p className="mt-1 sm:mt-2 max-w-xl text-xs sm:text-base text-muted-foreground">
+          <p className="mt-1 sm:mt-2 max-w-xl text-xs sm:text-sm text-muted-foreground">
             Your quiet corner of the internet — a soft glance at everything on your mind today.
           </p>
         </div>

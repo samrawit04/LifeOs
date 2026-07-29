@@ -44,10 +44,10 @@ function Archive() {
   return (
     <div className="mx-auto max-w-4xl px-3 sm:px-6 py-3 sm:py-10">
       <header className="mb-4 sm:mb-6">
-        <h1 className="flex items-center gap-2 font-display text-2xl sm:text-3xl text-lagoon">
-          <ArchiveIcon className="h-5.5 w-5.5 sm:h-6 sm:w-6 text-primary" /> Archive
+        <h1 className="flex items-center gap-2 font-display text-xl sm:text-3xl text-lagoon">
+          <ArchiveIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" /> Archive
         </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground">Restore or permanently delete old items.</p>
+        <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">Restore or permanently delete old items.</p>
       </header>
       <div className="mb-6 relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

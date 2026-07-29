@@ -13,4 +13,5 @@ public class User
     public ICollection<Expense> Expenses { get; set; } = [];
     public ICollection<Playlist> Playlists { get; set; } = [];
     public ICollection<Notification> Notifications { get; set; } = [];
+    public ICollection<PlannedPurchase> PlannedPurchases { get; set; } = [];
 }
