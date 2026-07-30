@@ -9,22 +9,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-function parseNotebookSnippet(raw: string | null): string {
-  if (!raw) return "Empty notebook page";
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.blocks)) {
-      const text = parsed.blocks
-        .map((b: any) => (typeof b.content === "string" ? b.content.trim() : ""))
-        .filter(Boolean)
-        .join(" ");
-      return text || "Empty notebook page";
-    }
-  } catch {
-    return raw.trim() || "Empty notebook page";
-  }
-  return raw.trim() || "Empty notebook page";
-}
+
 
 function Dashboard() {
   const { data: items = [] } = useItems();
@@ -42,7 +27,6 @@ function Dashboard() {
 
   const pinnedNotes = active.filter((i) => i.type === "sticky" && i.pinned).slice(0, 4);
   const recentNotes = active.filter((i) => i.type === "sticky").slice(0, 6);
-  const recentPages = active.filter((i) => i.type === "notebook_page").slice(0, 5);
 
   const stats = [
     { label: "Sticky notes", value: active.filter((i) => i.type === "sticky").length, icon: StickyNote, tint: "from-note-yellow/30 to-transparent" },
@@ -79,7 +63,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Today's calendar" icon={CalendarDays} to="/calendar" accent="from-primary/20">
           {todayEvents.length === 0 ? (
             <Empty text="Nothing scheduled. Enjoy the space." />
@@ -117,21 +101,6 @@ function Dashboard() {
                       Due {relDate(t.due_date!)}
                     </p>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="Recently edited" icon={NotebookText} to="/notebooks" accent="from-note-blue/20">
-          {recentPages.length === 0 ? (
-            <Empty text="No notebook pages yet." />
-          ) : (
-            <ul className="space-y-2">
-              {recentPages.map((p) => (
-                <li key={p.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]">
-                  <p className="truncate font-medium text-foreground">{p.title || "Untitled"}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{parseNotebookSnippet(p.content)}</p>
                 </li>
               ))}
             </ul>
