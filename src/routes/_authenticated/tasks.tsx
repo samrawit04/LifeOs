@@ -138,8 +138,8 @@ function TasksPage() {
       {/* Header */}
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl text-lagoon flex items-center gap-2">
-            <CheckSquare className="h-6 w-6 text-primary" /> Task Board
+          <h1 className="font-display text-2xl sm:text-3xl text-lagoon">
+            Task Board
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
             Organize, prioritize, and track your progress in real-time.

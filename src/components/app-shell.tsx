@@ -243,7 +243,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             onClick={toggleTheme}
             title={theme === "dark" ? "Switch to Light Mode (Grey & Forest Green)" : "Switch to Dark Mode"}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+            className="hidden lg:grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
           >
             {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
           </button>

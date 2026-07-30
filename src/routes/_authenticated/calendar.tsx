@@ -67,8 +67,8 @@ function CalendarPage() {
     <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
       <header className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="flex items-center gap-2 font-display text-xl sm:text-3xl text-lagoon">
-            <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-primary" /> Calendar
+          <h1 className="font-display text-xl sm:text-3xl text-lagoon">
+            Calendar
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">Plan your days, weeks and milestones.</p>
         </div>

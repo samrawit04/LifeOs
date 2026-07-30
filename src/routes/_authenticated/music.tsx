@@ -80,7 +80,7 @@ const PRESETS: VideoInfo[] = [
   },
 ];
 
-const SEARCH_SUGGESTIONS = [
+const DEFAULT_QUICK_WORDS = [
   "Lofi Hip Hop",
   "Jazz Rain Ambience",
   "Deep Focus Techno",
@@ -264,6 +264,43 @@ function MusicPage() {
   const [activeMainTab, setActiveMainTab] = useState<"player" | "search" | "curated">("player");
   const [liked, setLiked] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Editable Quick Search Suggestions
+  const [quickWords, setQuickWords] = useState<string[]>([]);
+  const [isAddingWord, setIsAddingWord] = useState(false);
+  const [newWordInput, setNewWordInput] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lifeos.music.quickwords");
+    if (saved) {
+      try {
+        setQuickWords(JSON.parse(saved));
+      } catch {
+        setQuickWords(DEFAULT_QUICK_WORDS);
+      }
+    } else {
+      setQuickWords(DEFAULT_QUICK_WORDS);
+    }
+  }, []);
+
+  const saveQuickWords = (newWords: string[]) => {
+    setQuickWords(newWords);
+    localStorage.setItem("lifeos.music.quickwords", JSON.stringify(newWords));
+  };
+
+  const addQuickWord = (word: string) => {
+    const trimmed = word.trim();
+    if (!trimmed) return;
+    if (quickWords.includes(trimmed)) {
+      toast.info("This quick suggestion already exists!");
+      return;
+    }
+    saveQuickWords([...quickWords, trimmed]);
+  };
+
+  const removeQuickWord = (wordToRemove: string) => {
+    saveQuickWords(quickWords.filter((w) => w !== wordToRemove));
+  };
 
   const youtubeApiKey = import.meta.env.VITE_YOUTUBE_API_KEY || "";
 
@@ -491,23 +528,79 @@ function MusicPage() {
 
       {/* ── Quick Search Chips ── */}
       <div className="flex items-center gap-2 overflow-x-auto px-6 py-3 border-b border-white/5 scrollbar-none">
-        <span className="text-xs font-medium text-muted-foreground mr-2">
+        <span className="text-xs font-medium text-muted-foreground mr-2 shrink-0">
           Quick:
         </span>
-        {SEARCH_SUGGESTIONS.map((tag) => (
-          <button
+        {quickWords.map((tag) => (
+          <span
             key={tag}
-            onClick={() => { setSearchQuery(tag); handleSearch(tag); }}
             className={cn(
-              "rounded-xl border px-3 py-1 text-xs font-medium whitespace-nowrap transition",
+              "flex items-center gap-1 shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition",
               searchQuery === tag
                 ? "border-primary/40 bg-primary/20 text-primary"
-                : "border-white/8 bg-white/[0.03] text-muted-foreground hover:border-white/15 hover:text-foreground"
+                : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20 hover:text-foreground"
             )}
           >
-            {tag}
-          </button>
+            <button
+              onClick={() => { setSearchQuery(tag); handleSearch(tag); }}
+              className="whitespace-nowrap hover:text-primary transition"
+            >
+              {tag}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                removeQuickWord(tag);
+              }}
+              className="ml-1 rounded-full p-0.5 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title={`Remove "${tag}"`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
         ))}
+
+        {/* Inline Add Form */}
+        {isAddingWord ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              addQuickWord(newWordInput);
+              setNewWordInput("");
+              setIsAddingWord(false);
+            }}
+            className="flex items-center gap-1.5 shrink-0 rounded-full border border-primary/30 bg-white/5 px-2.5 py-0.5"
+          >
+            <input
+              type="text"
+              value={newWordInput}
+              onChange={(e) => setNewWordInput(e.target.value)}
+              placeholder="New quick tag..."
+              className="bg-transparent border-none text-xs text-foreground focus:outline-none w-28 px-1 placeholder:text-muted-foreground/50"
+              autoFocus
+            />
+            <button type="submit" className="text-emerald-500 hover:text-emerald-400 p-0.5 rounded-full">
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddingWord(false);
+                setNewWordInput("");
+              }}
+              className="text-destructive hover:text-destructive/80 p-0.5 rounded-full"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setIsAddingWord(true)}
+            className="flex items-center gap-1 shrink-0 rounded-full border border-dashed border-white/20 bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-white/5 transition"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add
+          </button>
+        )}
       </div>
 
       {!youtubeApiKey && (
