@@ -62,7 +62,7 @@ class ApiClient {
 
   private get token() {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("lifeos_jwt");
+      return localStorage.getItem("lifepulse_jwt");
     }
     return null;
   }
@@ -87,7 +87,7 @@ class ApiClient {
 
     if (response.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("lifeos_jwt");
+        localStorage.removeItem("lifepulse_jwt");
       }
     }
 
@@ -131,7 +131,7 @@ class ApiClient {
       const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
       const res = await this.post<AuthResponse>("/api/auth/login", payload);
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        localStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
     },
@@ -140,7 +140,7 @@ class ApiClient {
       const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
       const res = await this.post<AuthResponse>("/api/auth/register", payload);
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        localStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
     },
@@ -156,14 +156,14 @@ class ApiClient {
     signInWithGoogleCredential: async (credential: string): Promise<AuthResponse> => {
       const res = await this.post<AuthResponse>("/api/auth/google", { credential });
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        localStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
     },
 
     signOut: async (): Promise<void> => {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("lifeos_jwt");
+        localStorage.removeItem("lifepulse_jwt");
       }
     },
 
@@ -178,15 +178,14 @@ class ApiClient {
 
     setSessionToken: (token: string): void => {
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", token);
-        // Dispatch a storage event so onAuthStateChange listeners fire in the same tab
-        window.dispatchEvent(new StorageEvent("storage", { key: "lifeos_jwt", newValue: token }));
+        localStorage.setItem("lifepulse_jwt", token);
+        window.dispatchEvent(new StorageEvent("storage", { key: "lifepulse_jwt", newValue: token }));
       }
     },
 
     onAuthStateChange: (callback: (event: string) => void) => {
       const handleStorage = (e: StorageEvent) => {
-        if (e.key === "lifeos_jwt") {
+        if (e.key === "lifepulse_jwt") {
           callback(e.newValue ? "SIGNED_IN" : "SIGNED_OUT");
         }
       };

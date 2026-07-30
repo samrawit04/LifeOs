@@ -73,12 +73,12 @@ export function ChatPanel({
 
         <img
           src="/logo.png"
-          alt="LifeOS AI"
+          alt="LifePulse AI"
           className="h-8 w-8 rounded-xl object-cover border border-white/20 shadow-sm shrink-0"
         />
 
         <div className="flex-1 leading-tight">
-          <p className="font-display text-sm font-bold text-white">LifeOS AI</p>
+          <p className="font-display text-sm font-bold text-white">LifePulse AI</p>
           <p className="text-[10px] text-green-100">
             {loading ? "Thinking…" : "Your personal life assistant"}
           </p>
@@ -109,7 +109,7 @@ export function ChatPanel({
           <div className="flex flex-col items-center gap-5 pt-6 pb-2 text-center">
             <img
               src="/logo.png"
-              alt="LifeOS AI"
+              alt="LifePulse AI"
               className="h-16 w-16 rounded-3xl object-cover shadow-[0_8px_24px_rgba(22,163,74,0.25)] border border-emerald-500/20"
             />
             <div>

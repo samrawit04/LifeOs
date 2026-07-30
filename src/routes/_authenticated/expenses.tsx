@@ -80,7 +80,7 @@ function ExpensesPage() {
   // Category Budgets State (Defaulting to user's parameters)
   const [categoryBudgets, setCategoryBudgets] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lifeos.expenses.category_budgets");
+      const saved = localStorage.getItem("lifepulse.expenses.category_budgets");
       return saved ? JSON.parse(saved) : { Food: 4000, Transport: 3000, Shopping: 1000 };
     }
     return { Food: 4000, Transport: 3000, Shopping: 1000 };
@@ -301,7 +301,7 @@ function ExpensesPage() {
       }
     });
     setCategoryBudgets(next);
-    localStorage.setItem("lifeos.expenses.category_budgets", JSON.stringify(next));
+    localStorage.setItem("lifepulse.expenses.category_budgets", JSON.stringify(next));
     setIsCategoryBudgetOpen(false);
     toast.success("Category budgets updated!");
   };

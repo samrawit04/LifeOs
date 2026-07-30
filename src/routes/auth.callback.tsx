@@ -28,7 +28,7 @@ function AuthCallbackPage() {
 
     if (token) {
       apiClient.auth.setSessionToken(token);
-      toast.success("Welcome to LifeOS!");
+      toast.success("Welcome to LifePulse!");
       navigate({ to: "/dashboard", replace: true });
     } else {
       toast.error("No authentication token provided.");

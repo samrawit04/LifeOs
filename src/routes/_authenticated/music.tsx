@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/music")({
   component: MusicPage,
   head: () => ({
     meta: [
-      { title: "Music & Focus · LifeOS" },
+      { title: "Music & Focus · LifePulse" },
       { name: "description", content: "Ambient music player and focus playlist manager." },
     ],
   }),
@@ -271,7 +271,7 @@ function MusicPage() {
   const [newWordInput, setNewWordInput] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("lifeos.music.quickwords");
+    const saved = localStorage.getItem("lifepulse.music.quickwords");
     if (saved) {
       try {
         setQuickWords(JSON.parse(saved));
@@ -285,7 +285,7 @@ function MusicPage() {
 
   const saveQuickWords = (newWords: string[]) => {
     setQuickWords(newWords);
-    localStorage.setItem("lifeos.music.quickwords", JSON.stringify(newWords));
+    localStorage.setItem("lifepulse.music.quickwords", JSON.stringify(newWords));
   };
 
   const addQuickWord = (word: string) => {
@@ -455,7 +455,6 @@ function MusicPage() {
   };
 
 
-  // Embed src — built once; iframe stays mounted always so music doesn't stop on tab switch
   const iframeSrc = currentVideo
     ? `https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
     : null;
@@ -463,9 +462,7 @@ function MusicPage() {
   return (
     <div className="min-h-screen bg-cozy-grain text-foreground pb-12">
 
-      {/* ── Top Header Bar ── */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-b border-white/5 px-4 sm:px-6 py-3 sm:py-4 bg-background/40 backdrop-blur-md">
-        {/* Title row — contains title and new playlist button on mobile */}
         <div className="flex items-center justify-between gap-3 w-full md:w-auto">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary to-accent font-bold text-primary-foreground shadow-md shrink-0">
@@ -473,7 +470,7 @@ function MusicPage() {
             </div>
             <div className="flex flex-col leading-none">
               <span className="font-display text-xl sm:text-3xl font-bold text-gradient-primary">Music & Focus</span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">LifeOS Soundscape</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">LifePulse Soundscape</span>
             </div>
           </div>
 

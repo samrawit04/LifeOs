@@ -51,7 +51,6 @@ function Dashboard() {
         </div>
       </header>
 
-      {/* Stat strip */}
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, tint }) => (
           <div key={label} className="glass-card relative overflow-hidden rounded-2xl p-5">

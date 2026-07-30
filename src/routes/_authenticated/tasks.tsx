@@ -43,7 +43,6 @@ function TasksPage() {
   const [folderId, setFolderId] = useState<string>("none");
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
 
-  // Drag & Drop State
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<ColumnId | null>(null);
 
@@ -135,7 +134,6 @@ function TasksPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8">
-      {/* Header */}
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl text-lagoon">
@@ -146,7 +144,6 @@ function TasksPage() {
           </p>
         </div>
 
-        {/* View Switcher Toggle */}
         <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-soft self-start sm:self-auto">
           <Button
             variant={viewMode === "board" ? "default" : "ghost"}
@@ -167,7 +164,6 @@ function TasksPage() {
         </div>
       </header>
 
-      {/* Task Creation Bar */}
       <form onSubmit={(e) => submit(e)} className="mb-8 rounded-2xl border bg-card p-4 shadow-soft">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input
@@ -199,7 +195,6 @@ function TasksPage() {
         </div>
       </form>
 
-      {/* Content Rendering */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[...Array(3)].map((_, i) => (
@@ -207,9 +202,7 @@ function TasksPage() {
           ))}
         </div>
       ) : viewMode === "board" ? (
-        /* 3-Column Board View */
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {/* Column 1: All Tasks */}
           <KanbanColumn
             columnId="backlog"
             title="All Tasks"
@@ -227,7 +220,6 @@ function TasksPage() {
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
           />
 
-          {/* Column 2: Today's Focus */}
           <KanbanColumn
             columnId="today"
             title="Today's Focus"
@@ -245,7 +237,6 @@ function TasksPage() {
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
           />
 
-          {/* Column 3: Done */}
           <KanbanColumn
             columnId="done"
             title="Done"
@@ -264,7 +255,6 @@ function TasksPage() {
           />
         </div>
       ) : (
-        /* Classic List View */
         <div className="mx-auto max-w-3xl space-y-6">
           {backlogTasks.length === 0 && todayTasks.length === 0 && doneTasks.length === 0 && (
             <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
@@ -343,9 +333,6 @@ function TasksPage() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Kanban Column Component
- * ───────────────────────────────────────────────────────────────────────────── */
 interface KanbanColumnProps {
   columnId: ColumnId;
   title: string;
@@ -389,7 +376,6 @@ function KanbanColumn({
         isActiveDrop && "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-lg"
       )}
     >
-      {/* Column Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {icon}
@@ -400,7 +386,6 @@ function KanbanColumn({
         </span>
       </div>
 
-      {/* Task Cards Container */}
       <div className="flex-1 space-y-2.5">
         {tasks.length === 0 ? (
           <div
@@ -430,9 +415,6 @@ function KanbanColumn({
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Task Card Component
- * ───────────────────────────────────────────────────────────────────────────── */
 interface TaskCardProps {
   task: Item;
   folders: Array<{ id: string; name: string }>;
@@ -445,8 +427,6 @@ interface TaskCardProps {
 
 function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, onArchive }: TaskCardProps) {
   const folder = folders.find((f) => f.id === task.folder_id);
-  // A task is only overdue if its due date is strictly before the start of today (yesterday or earlier).
-  // We compare day-level dates to avoid false overdue flags caused by timezone/time-of-day differences.
   const overdue =
     task.due_date &&
     !task.completed &&
@@ -462,22 +442,18 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
         isDragging && "opacity-40 border-dashed border-primary"
       )}
     >
-      {/* Drag handle */}
       <div className="mt-0.5 text-muted-foreground/40 group-hover:text-muted-foreground transition">
         <GripVertical className="h-4 w-4" />
       </div>
 
-      {/* Checkbox */}
       <Checkbox checked={task.completed} onCheckedChange={onToggle} className="mt-0.5" />
 
-      {/* Card Content */}
       <div className="min-w-0 flex-1">
         <p className={cn("text-sm font-medium text-foreground leading-snug", task.completed && "line-through text-muted-foreground")}>
           {task.title}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-          {/* Priority Badge */}
           {task.priority && (
             <span
               className={cn(
@@ -491,14 +467,12 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
             </span>
           )}
 
-          {/* Folder / Notebook Badge */}
           {folder && (
             <span className="flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-secondary-foreground">
               <FolderIcon className="h-3 w-3" /> {folder.name}
             </span>
           )}
 
-          {/* Due Date Badge */}
           {task.due_date && (
             <span
               className={cn(
@@ -517,7 +491,6 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
         </div>
       </div>
 
-      {/* Action Icons */}
       <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 shrink-0">
         <button
           onClick={onArchive}

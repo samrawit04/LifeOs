@@ -57,7 +57,7 @@ function buildSystemPrompt(items: Item[], expenses: Expense[]): string {
       )
       .join("\n") || "No recent expenses.";
 
-  return `You are a warm, empathetic, and insightful life assistant built into LifeOS — a personal productivity app. Today is ${now.toDateString()}.
+  return `You are a warm, empathetic, and insightful life assistant built into LifePulse — a personal productivity app. Today is ${now.toDateString()}.
 
 You have full access to the user's personal data. Use it naturally to give personalized advice. Reference specific tasks, events, or spending patterns when relevant — but don't dump all the data at the user; weave it in conversationally.
 
@@ -95,7 +95,7 @@ export type ChatMessage = {
   text: string;
 };
 
-export class LifeOSChat {
+export class LifePulseChat {
   private history: ChatMessage[] = [];
 
   constructor(

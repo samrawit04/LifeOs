@@ -39,11 +39,10 @@ const NAV = [
   { to: "/archive", label: "Archive", icon: Archive },
 ] as const;
 
-const STORAGE_KEY = "lifeos.sidebar.open";
-const THEME_STORAGE_KEY = "lifeos.theme";
+const STORAGE_KEY = "lifepulse.sidebar.open";
+const THEME_STORAGE_KEY = "lifepulse.theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  // Single open/closed flag used on all breakpoints. Default open on desktop.
   const [open, setOpen] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -51,13 +50,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Derive page title from pathname
   const pageTitle = (() => {
     const found = NAV.find((n) => pathname === n.to || pathname.startsWith(n.to + "/"));
-    return found?.label ?? "LifeOS";
+    return found?.label ?? "LifePulse";
   })();
 
-  // Theme hydration and listener
   useEffect(() => {
     const savedTheme = (localStorage.getItem(THEME_STORAGE_KEY) as "dark" | "light") || "dark";
     setTheme(savedTheme);
@@ -79,7 +76,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   };
 
-  // Track mobile vs desktop
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
     check();
@@ -87,7 +83,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Hydrate from localStorage after mount to avoid SSR mismatch.
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved !== null) setOpen(saved === "1");
@@ -98,7 +93,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
   }, [open]);
 
-  // Close sidebar on route change on small screens
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) setOpen(false);
   }, [pathname]);
@@ -112,7 +106,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
-      {/* Global query loading bar */}
       <div
         className={cn(
           "fixed top-0 left-0 right-0 z-[9999] h-[2px] overflow-hidden transition-opacity duration-300",
@@ -121,10 +114,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-transparent via-primary to-transparent" />
       </div>
-      {/* Floating top bar — visible when sidebar is closed (mobile primarily) */}
       {!open && (
         <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between gap-2 pointer-events-none">
-          {/* Left: Menu button */}
           <button
             onClick={() => setOpen(true)}
             aria-label="Show sidebar"
@@ -133,26 +124,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="h-4 w-4" />
           </button>
 
-          {/* Center: Current page title */}
           <span className="flex-1 text-center text-sm font-semibold text-foreground truncate px-2 pointer-events-none">
             {pageTitle}
           </span>
 
-          {/* Right: theme + notification + logo */}
           <div className="pointer-events-auto flex items-center gap-1.5">
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
               className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground backdrop-blur-xl transition-all hover:bg-white/10 hover:text-foreground"
-              title={theme === "dark" ? "Switch to Light Mode (Grey & Forest Green)" : "Switch to Dark Mode"}
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
             </button>
             <NotificationBell />
-            {/* LifeOS logo icon */}
             <img
               src="/logo.png"
-              alt="LifeOS"
+              alt="LifePulse"
               className="h-8 w-8 rounded-xl object-cover border border-white/10 shadow-soft"
             />
           </div>
@@ -165,22 +153,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* subtle top glow */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/15 to-transparent" />
 
         <div className="relative flex h-16 items-center gap-3 px-5">
           <img
             src="/logo.png"
-            alt="LifeOS Logo"
+            alt="LifePulse Logo"
             className="h-10 w-10 rounded-2xl object-cover shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)] border border-white/10"
           />
           <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
+            <span className="font-display text-lg font-semibold text-gradient-primary">LifePulse</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
-          {/* Controls header — only close button; notification is in the floating top bar */}
           <div className="ml-auto flex items-center gap-1.5">
-            {/* Close button */}
             <button
               onClick={() => setOpen(false)}
               aria-label="Hide sidebar"
@@ -242,7 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
           <button
             onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to Light Mode (Grey & Forest Green)" : "Switch to Dark Mode"}
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             className="hidden lg:grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
           >
             {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
@@ -263,14 +248,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           open ? "lg:ml-64" : "lg:ml-0",
         )}
       >
-        <main
+        <div
           className={cn(
             "min-w-0 flex-1 pt-12 lg:pt-0 transition-[padding] duration-300",
             !open && "pl-0 lg:pl-14",
           )}
         >
           {children}
-        </main>
+        </div>
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
@@ -281,5 +266,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-

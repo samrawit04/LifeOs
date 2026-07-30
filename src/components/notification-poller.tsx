@@ -11,7 +11,7 @@ import { useNotificationPoller } from "@/lib/notification-context";
 function getBudgets(): Record<string, number> {
   if (typeof window === "undefined") return { Food: 4000, Transport: 3000, Shopping: 1000 };
   try {
-    const saved = localStorage.getItem("lifeos.expenses.category_budgets");
+    const saved = localStorage.getItem("lifepulse.expenses.category_budgets");
     return saved ? JSON.parse(saved) : { Food: 4000, Transport: 3000, Shopping: 1000 };
   } catch {
     return { Food: 4000, Transport: 3000, Shopping: 1000 };

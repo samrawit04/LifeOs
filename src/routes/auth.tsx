@@ -18,8 +18,8 @@ export const Route = createFileRoute("/auth")({
   validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
-      { title: "Sign in · LifeOS" },
-      { name: "description", content: "Sign in to your LifeOS workspace." },
+      { title: "Sign in · LifePulse" },
+      { name: "description", content: "Sign in to your LifePulse workspace." },
     ],
   }),
   component: AuthPage,
@@ -77,7 +77,7 @@ function AuthPage() {
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-lagoon text-cream font-display text-lg">
             L
           </div>
-          <span className="font-display text-xl font-semibold text-lagoon">LifeOS</span>
+          <span className="font-display text-xl font-semibold text-lagoon">LifePulse</span>
         </Link>
 
         <div className="rounded-3xl border bg-card p-7 shadow-soft">
@@ -143,7 +143,7 @@ function AuthPage() {
           </form>
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            {isSignup ? "Already have an account?" : "New to LifeOS?"}{" "}
+            {isSignup ? "Already have an account?" : "New to LifePulse?"}{" "}
             <Link
               to="/auth"
               search={{ mode: isSignup ? "signin" : "signup" }}
