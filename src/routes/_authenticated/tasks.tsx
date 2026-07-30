@@ -22,6 +22,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { format, isBefore, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -41,8 +49,9 @@ function TasksPage() {
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState<string>("medium");
-  const [folderId, setFolderId] = useState<string>("none");
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [targetColumn, setTargetColumn] = useState<ColumnId>("backlog");
 
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<ColumnId | null>(null);
@@ -67,12 +76,20 @@ function TasksPage() {
     [tasks]
   );
 
-  const submit = (e: React.FormEvent, targetColumn?: ColumnId) => {
+  const openModal = (col: ColumnId = "backlog") => {
+    setTargetColumn(col);
+    setTitle("");
+    setDue(col === "today" ? format(new Date(), "yyyy-MM-dd") : "");
+    setPriority("medium");
+    setIsModalOpen(true);
+  };
+
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     let targetDue: string | null = due ? new Date(due).toISOString() : null;
-    if (targetColumn === "today") {
+    if (targetColumn === "today" && !due) {
       targetDue = new Date().toISOString();
     }
 
@@ -81,12 +98,12 @@ function TasksPage() {
       title: title.trim(),
       priority,
       due_date: targetDue,
-      folder_id: folderId === "none" ? null : folderId,
-      completed: targetColumn === "done",
+      completed: false,
     });
 
     setTitle("");
     setDue("");
+    setIsModalOpen(false);
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -148,56 +165,35 @@ function TasksPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-soft self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <Button
-            variant={viewMode === "board" ? "default" : "ghost"}
             size="sm"
-            onClick={() => setViewMode("board")}
-            className={cn("h-8 gap-1.5 text-xs font-medium", viewMode === "board" && "bg-lagoon text-cream")}
+            onClick={() => openModal("backlog")}
+            className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-sm"
           >
-            <LayoutGrid className="h-3.5 w-3.5" /> Board
+            <Plus className="h-3.5 w-3.5" /> New Task
           </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className={cn("h-8 gap-1.5 text-xs font-medium", viewMode === "list" && "bg-lagoon text-cream")}
-          >
-            <List className="h-3.5 w-3.5" /> List
-          </Button>
+
+          <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-soft">
+            <Button
+              variant={viewMode === "board" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("board")}
+              className={cn("h-8 gap-1.5 text-xs font-medium", viewMode === "board" && "bg-lagoon text-cream")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Board
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className={cn("h-8 gap-1.5 text-xs font-medium", viewMode === "list" && "bg-lagoon text-cream")}
+            >
+              <List className="h-3.5 w-3.5" /> List
+            </Button>
+          </div>
         </div>
       </header>
-
-      <form onSubmit={(e) => submit(e)} className="mb-8 rounded-2xl border bg-card p-4 shadow-soft">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What needs doing? (e.g. Finish project roadmap)"
-            className="flex-1"
-          />
-          <Button type="submit" disabled={create.isPending} className="bg-lagoon text-cream hover:bg-lagoon/90 shrink-0">
-            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {create.isPending ? "Adding…" : "Add Task"}
-          </Button>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="w-auto text-xs" />
-          <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="w-32 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
-            <SelectContent>
-              {PRIORITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={folderId} onValueChange={setFolderId}>
-            <SelectTrigger className="w-44 text-xs"><SelectValue placeholder="No notebook" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No notebook</SelectItem>
-              {folders.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-      </form>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -223,6 +219,7 @@ function TasksPage() {
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
             onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
+            onAddTask={() => openModal("backlog")}
           />
 
           <KanbanColumn
@@ -241,6 +238,7 @@ function TasksPage() {
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
             onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
+            onAddTask={() => openModal("today")}
           />
 
           <KanbanColumn
@@ -335,6 +333,66 @@ function TasksPage() {
           )}
         </div>
       )}
+
+      {/* Add Task Modal Card */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-md p-6">
+          <form onSubmit={submit}>
+            <DialogHeader>
+              <DialogTitle className="font-display text-lg font-bold text-foreground">
+                {targetColumn === "today" ? "Add Task to Today's Focus" : "Add New Task"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="task-title" className="text-xs font-semibold text-foreground">Task Title</Label>
+                <Input
+                  id="task-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="What needs doing? (e.g. Finish project roadmap)"
+                  autoFocus
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground/70 text-sm h-10 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="task-due" className="text-xs font-semibold text-foreground">Due Date</Label>
+                  <Input
+                    id="task-due"
+                    type="date"
+                    value={due}
+                    onChange={(e) => setDue(e.target.value)}
+                    className="border-input bg-background text-foreground text-xs h-9 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="task-priority" className="text-xs font-semibold text-foreground">Priority</Label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger id="task-priority" className="border-input bg-background text-foreground text-xs h-9 rounded-xl">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground border-border">
+                      {PRIORITIES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)} className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground text-xs rounded-xl h-9">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={create.isPending || !title.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold rounded-xl h-9 px-4 shadow-sm">
+                {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                Create Task
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -356,6 +414,7 @@ interface KanbanColumnProps {
   onArchive: (task: Item) => void;
   onMoveToToday?: (task: Item) => void;
   onMoveToBacklog?: (task: Item) => void;
+  onAddTask?: () => void;
 }
 
 function KanbanColumn({
@@ -375,6 +434,7 @@ function KanbanColumn({
   onArchive,
   onMoveToToday,
   onMoveToBacklog,
+  onAddTask,
 }: KanbanColumnProps) {
   return (
     <div
@@ -391,9 +451,20 @@ function KanbanColumn({
           {icon}
           <h2 className="font-semibold text-sm text-foreground">{title}</h2>
         </div>
-        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-          {tasks.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+            {tasks.length}
+          </span>
+          {onAddTask && (
+            <button
+              onClick={onAddTask}
+              className="grid h-6 w-6 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-primary hover:text-primary-foreground hover:border-primary shadow-sm"
+              title={`Add task to ${title}`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 space-y-2.5">
