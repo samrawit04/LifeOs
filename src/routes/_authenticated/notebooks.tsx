@@ -21,6 +21,10 @@ import {
   Circle,
   FileText,
   Loader2,
+  Table2,
+  Smile,
+  PlusCircle,
+  Minus,
 } from "lucide-react";
 import {
   useCreateFolder,
@@ -64,7 +68,8 @@ export const Route = createFileRoute("/_authenticated/notebooks")({
 
 type TextBlock  = { id: string; kind: "text"; content: string };
 type MediaBlock = { id: string; kind: "media"; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string };
-type Block = TextBlock | MediaBlock;
+type TableBlock = { id: string; kind: "table"; rows: string[][] };
+type Block = TextBlock | MediaBlock | TableBlock;
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -546,11 +551,12 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   const [blocks, setBlocks] = useState<Block[]>(() => parseBlocks(page.content));
   const [title, setTitle] = useState(page.title ?? "");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [recorderMode, setRecorderMode] = useState<"idle" | "photo" | "audio" | "video">("idle");
-  // Track which text block is currently focused so media inserts after it
   const activeBlockIdRef = useRef<string | null>(null);
   const focusPendingRef = useRef<string | null>(null);
+  const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const save = useCallback(
     (overrideBlocks?: Block[], overrideTitle?: string) => {
@@ -625,6 +631,110 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     e.target.value = "";
   };
 
+  const insertTable = useCallback((rows = 3, cols = 3) => {
+    setBlocks((prev) => {
+      const activeId = activeBlockIdRef.current ?? prev[prev.length - 1]?.id;
+      const idx = prev.findIndex((b) => b.id === activeId);
+      const insertAt = idx >= 0 ? idx + 1 : prev.length;
+      const tableBlock: TableBlock = {
+        id: genId(),
+        kind: "table",
+        rows: Array.from({ length: rows }, () => Array(cols).fill("")),
+      };
+      const continuationBlock: TextBlock = { id: genId(), kind: "text", content: "" };
+      focusPendingRef.current = continuationBlock.id;
+      const next = [...prev.slice(0, insertAt), tableBlock, continuationBlock, ...prev.slice(insertAt)];
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const updateTableCell = useCallback((tableId: string, row: number, col: number, value: string) => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== tableId || b.kind !== "table") return b;
+        const rows = b.rows.map((r, ri) => ri === row ? r.map((c, ci) => ci === col ? value : c) : r);
+        return { ...b, rows };
+      });
+      return next;
+    });
+  }, []);
+
+  const addTableRow = useCallback((tableId: string) => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== tableId || b.kind !== "table") return b;
+        const cols = b.rows[0]?.length ?? 3;
+        return { ...b, rows: [...b.rows, Array(cols).fill("")] };
+      });
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const addTableCol = useCallback((tableId: string) => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== tableId || b.kind !== "table") return b;
+        return { ...b, rows: b.rows.map((r) => [...r, ""]) };
+      });
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const removeTableRow = useCallback((tableId: string) => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== tableId || b.kind !== "table") return b;
+        if (b.rows.length <= 1) return b;
+        return { ...b, rows: b.rows.slice(0, -1) };
+      });
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const removeTableCol = useCallback((tableId: string) => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== tableId || b.kind !== "table") return b;
+        const cols = b.rows[0]?.length ?? 0;
+        if (cols <= 1) return b;
+        return { ...b, rows: b.rows.map((r) => r.slice(0, -1)) };
+      });
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const insertEmoji = useCallback((emoji: string) => {
+    setShowEmojiPicker(false);
+    const ta = activeTextareaRef.current;
+    if (ta) {
+      const start = ta.selectionStart ?? ta.value.length;
+      const end = ta.selectionEnd ?? ta.value.length;
+      const id = activeBlockIdRef.current;
+      if (id) {
+        setBlocks((prev) => prev.map((b) => {
+          if (b.id !== id || b.kind !== "text") return b;
+          const next = b.content.slice(0, start) + emoji + b.content.slice(end);
+          return { ...b, content: next };
+        }));
+        setTimeout(() => {
+          ta.focus();
+          const pos = start + emoji.length;
+          ta.setSelectionRange(pos, pos);
+        }, 10);
+      }
+    } else {
+      const id = activeBlockIdRef.current;
+      if (id) {
+        setBlocks((prev) => prev.map((b) => b.id === id && b.kind === "text" ? { ...b, content: b.content + emoji } : b));
+      }
+    }
+  }, []);
+
   return (
     <>
       <div className="flex flex-col h-full overflow-hidden">
@@ -654,16 +764,31 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
                     value={block.content}
                     placeholder={idx === 0 ? "Start writing…" : "Continue writing…"}
                     onChange={(val) => updateText(block.id, val)}
-                    onFocus={() => { activeBlockIdRef.current = block.id; }}
+                    onFocus={(ta) => { activeBlockIdRef.current = block.id; activeTextareaRef.current = ta; }}
                     onBlur={() => save()}
                   />
                 );
               }
-              // media block
+              if (block.kind === "table") {
+                return (
+                  <div key={block.id} className="my-3">
+                    <TableEditor
+                      block={block}
+                      onCellChange={(r, c, v) => updateTableCell(block.id, r, c, v)}
+                      onCellBlur={() => save()}
+                      onAddRow={() => addTableRow(block.id)}
+                      onAddCol={() => addTableCol(block.id)}
+                      onRemoveRow={() => removeTableRow(block.id)}
+                      onRemoveCol={() => removeTableCol(block.id)}
+                      onRemove={() => removeBlock(block.id)}
+                    />
+                  </div>
+                );
+              }
               return (
                 <div key={block.id} className="my-2">
                   <AttachmentView
-                    attachment={{ id: block.id, type: block.type, name: block.name, dataUrl: block.dataUrl, mimeType: block.mimeType }}
+                    attachment={{ id: block.id, type: (block as MediaBlock).type, name: (block as MediaBlock).name, dataUrl: (block as MediaBlock).dataUrl, mimeType: (block as MediaBlock).mimeType }}
                     onRemove={() => removeBlock(block.id)}
                   />
                 </div>
@@ -686,6 +811,13 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
               <ToolbarBtn icon={<Mic className="h-4 w-4" />} label="Audio" onClick={() => setRecorderMode("audio")} title="Record audio" />
               <ToolbarBtn icon={<Video className="h-4 w-4" />} label="Video" onClick={() => setRecorderMode("video")} title="Record video" />
               <ToolbarBtn icon={<Paperclip className="h-4 w-4" />} label="File" onClick={() => fileInputRef.current?.click()} title="Attach file" />
+              <ToolbarBtn icon={<Table2 className="h-4 w-4" />} label="Table" onClick={() => insertTable(3, 3)} title="Insert table" />
+              <div className="relative">
+                <ToolbarBtn icon={<Smile className="h-4 w-4" />} label="Emoji" onClick={() => setShowEmojiPicker((p) => !p)} title="Insert emoji" />
+                {showEmojiPicker && (
+                  <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} />
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-0.5">
               <button onClick={onArchive} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" title="Archive">
@@ -729,7 +861,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
 function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
   id: string; value: string; placeholder: string;
-  onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
+  onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -745,7 +877,7 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      onFocus={onFocus}
+      onFocus={() => ref.current && onFocus(ref.current)}
       onBlur={onBlur}
       className="w-full bg-transparent text-sm sm:text-base leading-[1.85] text-foreground/85 placeholder:text-muted-foreground/20 focus:outline-none resize-none min-h-[2rem] font-sans block overflow-hidden"
     />
@@ -1038,8 +1170,6 @@ function AttachmentView({ attachment, onRemove }: { attachment: AttachmentLike; 
   );
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
-
 function EmptyState({ icon, title, description, action }: { icon: React.ReactNode; title: string; description: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-2xl border border-dashed border-white/[0.07] bg-white/[0.01]">
@@ -1047,6 +1177,137 @@ function EmptyState({ icon, title, description, action }: { icon: React.ReactNod
       <h3 className="font-display font-semibold text-foreground/60 text-sm mb-1">{title}</h3>
       <p className="text-xs text-muted-foreground/40 max-w-xs">{description}</p>
       {action}
+    </div>
+  );
+}
+
+// ─── Table Editor ──────────────────────────────────────────────────────────────
+
+function TableEditor({ block, onCellChange, onCellBlur, onAddRow, onAddCol, onRemoveRow, onRemoveCol, onRemove }: {
+  block: TableBlock;
+  onCellChange: (row: number, col: number, value: string) => void;
+  onCellBlur: () => void;
+  onAddRow: () => void;
+  onAddCol: () => void;
+  onRemoveRow: () => void;
+  onRemoveCol: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="group relative rounded-xl border border-white/[0.10] bg-white/[0.03] overflow-x-auto">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.07] bg-white/[0.02]">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40 flex items-center gap-1.5">
+          <Table2 className="h-3 w-3" /> Table
+        </span>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onAddRow} title="Add row" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-1.5 py-1 rounded-lg hover:bg-primary/10 transition-colors">
+            <PlusCircle className="h-3 w-3" /><span>Row</span>
+          </button>
+          <button onClick={onAddCol} title="Add column" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-1.5 py-1 rounded-lg hover:bg-primary/10 transition-colors">
+            <PlusCircle className="h-3 w-3" /><span>Col</span>
+          </button>
+          <button onClick={onRemoveRow} title="Remove last row" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-orange-400 px-1.5 py-1 rounded-lg hover:bg-orange-400/10 transition-colors">
+            <Minus className="h-3 w-3" /><span>Row</span>
+          </button>
+          <button onClick={onRemoveCol} title="Remove last column" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-orange-400 px-1.5 py-1 rounded-lg hover:bg-orange-400/10 transition-colors">
+            <Minus className="h-3 w-3" /><span>Col</span>
+          </button>
+          <button onClick={onRemove} title="Remove table" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-1 rounded-lg hover:bg-destructive/10 transition-colors ml-1">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+      <table className="w-full border-collapse min-w-max">
+        <thead>
+          <tr>
+            {block.rows[0]?.map((_, ci) => (
+              <th key={ci} className="border border-white/[0.08] px-1 py-0.5 bg-white/[0.04] text-[10px] text-muted-foreground/50 font-medium text-center w-8 select-none">
+                {String.fromCharCode(65 + ci)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, ri) => (
+            <tr key={ri} className="group/row">
+              {row.map((cell, ci) => (
+                <td key={ci} className="border border-white/[0.08] p-0 relative">
+                  <input
+                    value={cell}
+                    onChange={(e) => onCellChange(ri, ci, e.target.value)}
+                    onBlur={onCellBlur}
+                    className={cn(
+                      "w-full min-w-[80px] px-2.5 py-2 text-sm bg-transparent text-foreground/85 focus:outline-none focus:bg-primary/5 transition-colors",
+                      ri === 0 && "font-semibold text-foreground"
+                    )}
+                    placeholder={ri === 0 ? `Header ${ci + 1}` : ""}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Emoji Picker ──────────────────────────────────────────────────────────────
+
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  { label: "Smileys", emojis: ["😀","😄","😂","🤣","😊","😍","🥰","😘","😎","🤩","😜","🤪","😏","😒","😔","😢","😭","😤","😠","🤯","😱","😨","🥶","🤔","🤗","🫡","😴","🤐","🥳","🥺"] },
+  { label: "Nature", emojis: ["🌸","🌺","🌻","🌹","🌷","🍀","🌿","🍃","🌱","🌲","🌳","🌴","🍄","🌾","🌊","🌈","☀️","🌙","⭐","❄️","🔥","💧","🌍","🌺","🦋","🐝","🦄","🐶","🐱","🦊"] },
+  { label: "Food", emojis: ["🍕","🍔","🌮","🍜","🍣","🍦","🎂","🍩","🍎","🍓","🍇","☕","🍵","🧃","🍺","🥂","🥑","🥦","🍋","🍊","🍉","🍒","🍑","🥐","🧇","🥗","🍱","🍿","🥜","🫙"] },
+  { label: "Activities", emojis: ["⚽","🏀","🎮","🎵","🎨","📚","✈️","🚀","🏆","🎯","🎲","🎭","🎤","🎸","🎹","📸","🎬","🏋️","🚴","🧘","⛷️","🏄","🎪","🎠","🎡","🎢","🎃","🎄","🎉","🎊"] },
+  { label: "Objects", emojis: ["💡","🔑","💎","📱","💻","🖥️","📷","🎙️","📝","📌","📎","✏️","🖊️","🔒","🔓","💰","💳","🎁","🛍️","🧳","⏰","📅","🗂️","📊","🔬","🔭","⚙️","🧲","💊","🏥"] },
+  { label: "Symbols", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💕","💖","✨","⚡","💫","🌟","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","✅","❌","⭕","💯","🔔","💬","👍"] },
+];
+
+function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+  const [activeCategory, setActiveCategory] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full mb-2 right-0 w-72 rounded-2xl border border-white/10 bg-[#1a1e1a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
+    >
+      <div className="flex border-b border-white/[0.07] overflow-x-auto scrollbar-none">
+        {EMOJI_CATEGORIES.map((cat, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveCategory(i)}
+            className={cn(
+              "shrink-0 px-3 py-2 text-[10px] font-medium whitespace-nowrap transition-colors",
+              activeCategory === i
+                ? "text-primary border-b-2 border-primary -mb-px"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+      <div className="p-2 grid grid-cols-8 gap-0.5 max-h-48 overflow-y-auto">
+        {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, i) => (
+          <button
+            key={i}
+            onClick={() => onSelect(emoji)}
+            className="h-8 w-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
+            title={emoji}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

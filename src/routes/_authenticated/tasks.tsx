@@ -14,6 +14,7 @@ import {
   Clock,
   CalendarDays,
   FolderIcon,
+  CalendarOff,
 } from "lucide-react";
 import { useCreateItem, useDeleteItem, useFolders, useItems, useUpdateItem } from "@/hooks/use-lifeos";
 import { PRIORITIES, type Item } from "@/lib/lifeos-types";
@@ -49,7 +50,10 @@ function TasksPage() {
   const tasks = useMemo(() => items.filter((i) => i.type === "task" && !i.archived), [items]);
 
   const backlogTasks = useMemo(
-    () => tasks.filter((t) => !t.completed).sort(sortByDue),
+    () =>
+      tasks
+        .filter((t) => !t.completed && (!t.due_date || !isToday(new Date(t.due_date))))
+        .sort(sortByDue),
     [tasks]
   );
 
@@ -127,7 +131,7 @@ function TasksPage() {
     } else if (columnId === "backlog") {
       update.mutate({
         id: itemId,
-        patch: { completed: false, clearDueDate: true },
+        patch: { completed: false, due_date: null },
       });
     }
   };
@@ -218,6 +222,7 @@ function TasksPage() {
             onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+            onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
           />
 
           <KanbanColumn
@@ -235,6 +240,7 @@ function TasksPage() {
             onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+            onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
           />
 
           <KanbanColumn
@@ -348,6 +354,8 @@ interface KanbanColumnProps {
   onToggle: (task: Item) => void;
   onDelete: (task: Item) => void;
   onArchive: (task: Item) => void;
+  onMoveToToday?: (task: Item) => void;
+  onMoveToBacklog?: (task: Item) => void;
 }
 
 function KanbanColumn({
@@ -365,6 +373,8 @@ function KanbanColumn({
   onToggle,
   onDelete,
   onArchive,
+  onMoveToToday,
+  onMoveToBacklog,
 }: KanbanColumnProps) {
   return (
     <div
@@ -407,6 +417,8 @@ function KanbanColumn({
               onToggle={() => onToggle(task)}
               onDelete={() => onDelete(task)}
               onArchive={() => onArchive(task)}
+              onMoveToToday={onMoveToToday ? () => onMoveToToday(task) : undefined}
+              onMoveToBacklog={onMoveToBacklog ? () => onMoveToBacklog(task) : undefined}
             />
           ))
         )}
@@ -423,9 +435,11 @@ interface TaskCardProps {
   onToggle: () => void;
   onDelete: () => void;
   onArchive: () => void;
+  onMoveToToday?: () => void;
+  onMoveToBacklog?: () => void;
 }
 
-function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, onArchive }: TaskCardProps) {
+function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, onArchive, onMoveToToday, onMoveToBacklog }: TaskCardProps) {
   const folder = folders.find((f) => f.id === task.folder_id);
   const overdue =
     task.due_date &&
@@ -491,7 +505,25 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
         </div>
       </div>
 
-      <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 shrink-0">
+      <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 shrink-0 gap-0.5">
+        {onMoveToToday && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveToToday(); }}
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
+            title="Move to Today's Focus"
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {onMoveToBacklog && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveToBacklog(); }}
+            className="rounded p-1 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition"
+            title="Move back to All Tasks"
+          >
+            <CalendarOff className="h-3.5 w-3.5" />
+          </button>
+        )}
         <button
           onClick={onArchive}
           className="rounded p-1 text-muted-foreground hover:bg-accent/50 hover:text-foreground"

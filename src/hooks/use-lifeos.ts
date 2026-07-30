@@ -78,12 +78,15 @@ export function useUpdateItem() {
       // Map null values to explicit clear flags for EF Core DTO compatibility
       if (patch.folder_id === null) {
         apiPatch.clear_folder_id = true;
+        apiPatch.clearFolderId = true;
       }
       if (patch.due_date === null) {
         apiPatch.clear_due_date = true;
+        apiPatch.clearDueDate = true;
       }
       if (patch.event_date === null) {
         apiPatch.clear_event_date = true;
+        apiPatch.clearEventDate = true;
       }
 
       return apiClient.patch<Item>(`/api/items/${id}`, apiPatch);
