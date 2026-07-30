@@ -227,6 +227,45 @@ namespace LifeOS.Api.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("LifeOS.Api.Models.PlannedPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Shopping");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("Purchased")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PlannedPurchases");
+                });
+
             modelBuilder.Entity("LifeOS.Api.Models.Playlist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -384,6 +423,17 @@ namespace LifeOS.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("LifeOS.Api.Models.PlannedPurchase", b =>
+                {
+                    b.HasOne("LifeOS.Api.Models.User", "User")
+                        .WithMany("PlannedPurchases")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("LifeOS.Api.Models.Playlist", b =>
                 {
                     b.HasOne("LifeOS.Api.Models.User", "User")
@@ -425,6 +475,8 @@ namespace LifeOS.Api.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Notifications");
+
+                    b.Navigation("PlannedPurchases");
 
                     b.Navigation("Playlists");
                 });
