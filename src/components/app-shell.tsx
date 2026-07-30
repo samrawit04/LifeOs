@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Music,
+  Loader2,
 } from "lucide-react";
 import { apiClient } from "@/integrations/api/client";
 import { cn } from "@/lib/utils";
@@ -103,17 +104,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const isFetching = useIsFetching();
+  const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
+  const isLoading = isNavigating || isFetching > 0;
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
       <div
         className={cn(
-          "fixed top-0 left-0 right-0 z-[9999] h-[2px] overflow-hidden transition-opacity duration-300",
-          isFetching ? "opacity-100" : "opacity-0",
+          "fixed top-0 left-0 right-0 z-[9999] h-[3px] overflow-hidden transition-opacity duration-300 pointer-events-none",
+          isLoading ? "opacity-100" : "opacity-0",
         )}
       >
-        <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-transparent via-primary to-transparent" />
+        <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-primary via-accent to-primary shadow-[0_0_12px_oklch(0.78_0.14_160/0.9)]" />
       </div>
+
+      {isLoading && (
+        <div className="fixed top-4 right-4 z-[9999] flex items-center gap-2 rounded-full border border-white/10 bg-background/80 px-3 py-1.5 text-xs text-foreground shadow-soft backdrop-blur-xl animate-in fade-in duration-200 pointer-events-none">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span className="font-medium text-[11px]">Loading…</span>
+        </div>
+      )}
       {!open && (
         <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between gap-2 pointer-events-none">
           <button

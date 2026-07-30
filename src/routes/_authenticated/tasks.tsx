@@ -451,27 +451,27 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
       draggable
       onDragStart={(e) => onDragStart(e, task.id)}
       className={cn(
-        "group relative flex items-start gap-2.5 rounded-xl border bg-card p-3 shadow-soft transition hover:shadow-md cursor-grab active:cursor-grabbing select-none",
+        "group relative flex items-start gap-2 rounded-xl border bg-card p-2.5 sm:p-3 shadow-soft transition hover:shadow-md cursor-grab active:cursor-grabbing select-none",
         task.completed && "opacity-60 bg-muted/30",
         isDragging && "opacity-40 border-dashed border-primary"
       )}
     >
       <div className="mt-0.5 text-muted-foreground/40 group-hover:text-muted-foreground transition">
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-3.5 w-3.5" />
       </div>
 
-      <Checkbox checked={task.completed} onCheckedChange={onToggle} className="mt-0.5" />
+      <Checkbox checked={task.completed} onCheckedChange={onToggle} className="mt-0.5 h-3.5 w-3.5" />
 
       <div className="min-w-0 flex-1">
-        <p className={cn("text-sm font-medium text-foreground leading-snug", task.completed && "line-through text-muted-foreground")}>
+        <p className={cn("text-xs sm:text-[13px] font-medium text-foreground leading-snug", task.completed && "line-through text-muted-foreground")}>
           {task.title}
         </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
           {task.priority && (
             <span
               className={cn(
-                "rounded-md px-1.5 py-0.5 font-semibold uppercase tracking-wider text-[10px]",
+                "rounded-md px-1.5 py-0.5 font-semibold uppercase tracking-wider text-[9px]",
                 task.priority === "high" && "bg-destructive/15 text-destructive",
                 task.priority === "medium" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
                 task.priority === "low" && "bg-muted text-muted-foreground"
@@ -482,15 +482,15 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
           )}
 
           {folder && (
-            <span className="flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-secondary-foreground">
-              <FolderIcon className="h-3 w-3" /> {folder.name}
+            <span className="flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-secondary-foreground text-[9px]">
+              <FolderIcon className="h-2.5 w-2.5" /> {folder.name}
             </span>
           )}
 
           {task.due_date && (
             <span
               className={cn(
-                "flex items-center gap-1 rounded-md px-1.5 py-0.5",
+                "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px]",
                 overdue
                   ? "bg-destructive/15 text-destructive font-medium"
                   : isToday(new Date(task.due_date))
@@ -498,7 +498,7 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
                   : "bg-muted text-muted-foreground"
               )}
             >
-              <Calendar className="h-3 w-3" />
+              <Calendar className="h-2.5 w-2.5" />
               {isToday(new Date(task.due_date)) ? "Today" : format(new Date(task.due_date), "MMM d")}
             </span>
           )}
@@ -512,7 +512,7 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
             className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
             title="Move to Today's Focus"
           >
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-3 w-3" />
           </button>
         )}
         {onMoveToBacklog && (
@@ -521,7 +521,7 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
             className="rounded p-1 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition"
             title="Move back to All Tasks"
           >
-            <CalendarOff className="h-3.5 w-3.5" />
+            <CalendarOff className="h-3 w-3" />
           </button>
         )}
         <button
@@ -529,14 +529,14 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
           className="rounded p-1 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           title="Archive"
         >
-          <ArchiveIcon className="h-3.5 w-3.5" />
+          <ArchiveIcon className="h-3 w-3" />
         </button>
         <button
           onClick={onDelete}
           className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           title="Delete"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </button>
       </div>
     </div>

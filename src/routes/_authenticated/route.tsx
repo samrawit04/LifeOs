@@ -2,9 +2,11 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { apiClient } from "@/integrations/api/client";
 import { AppShell } from "@/components/app-shell";
 import { NotificationProvider } from "@/lib/notification-context";
+import { PageLoadingSpinner } from "@/components/page-loading-spinner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
+  pendingComponent: PageLoadingSpinner,
   beforeLoad: async () => {
     const user = await apiClient.auth.getUser();
     if (!user) throw redirect({ to: "/auth" });
