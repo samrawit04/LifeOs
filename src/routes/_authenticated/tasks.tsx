@@ -15,14 +15,17 @@ import {
   CalendarDays,
   FolderIcon,
   CalendarOff,
+  Pencil,
 } from "lucide-react";
 import { useCreateItem, useDeleteItem, useFolders, useItems, useUpdateItem } from "@/hooks/use-lifeos";
-import { PRIORITIES, type Item } from "@/lib/lifeos-types";
+import { PRIORITIES, type Item, type ItemUpdate } from "@/lib/lifeos-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -49,9 +52,18 @@ function TasksPage() {
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState<string>("medium");
+  const [folderId, setFolderId] = useState<string>("none");
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ColumnId>("backlog");
+
+  // Task Edit State
+  const [editingTask, setEditingTask] = useState<Item | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editDue, setEditDue] = useState("");
+  const [editPriority, setEditPriority] = useState<string>("medium");
+  const [editFolderId, setEditFolderId] = useState<string>("none");
 
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<ColumnId | null>(null);
@@ -81,7 +93,17 @@ function TasksPage() {
     setTitle("");
     setDue(col === "today" ? format(new Date(), "yyyy-MM-dd") : "");
     setPriority("medium");
+    setFolderId("none");
     setIsModalOpen(true);
+  };
+
+  const openEditModal = (task: Item) => {
+    setEditingTask(task);
+    setEditTitle(task.title || "");
+    setEditContent(task.content || "");
+    setEditDue(task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "");
+    setEditPriority(task.priority || "medium");
+    setEditFolderId(task.folder_id || "none");
   };
 
   const submit = (e: React.FormEvent) => {
@@ -93,17 +115,52 @@ function TasksPage() {
       targetDue = new Date().toISOString();
     }
 
-    create.mutate({
-      type: "task",
-      title: title.trim(),
-      priority,
-      due_date: targetDue,
-      completed: false,
-    });
+    create.mutate(
+      {
+        type: "task",
+        title: title.trim(),
+        priority,
+        due_date: targetDue,
+        folder_id: folderId !== "none" ? folderId : null,
+        completed: false,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Task created");
+        },
+      }
+    );
 
     setTitle("");
     setDue("");
+    setFolderId("none");
     setIsModalOpen(false);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask || !editTitle.trim()) return;
+
+    const patch: ItemUpdate = {
+      title: editTitle.trim(),
+      content: editContent.trim() || null,
+      priority: editPriority,
+      due_date: editDue ? new Date(editDue).toISOString() : null,
+      folder_id: editFolderId !== "none" ? editFolderId : null,
+    };
+
+    update.mutate(
+      { id: editingTask.id, patch },
+      {
+        onSuccess: () => {
+          toast.success("Task updated");
+          setEditingTask(null);
+        },
+        onError: (err) => {
+          toast.error(err.message || "Failed to update task");
+        },
+      }
+    );
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -218,6 +275,7 @@ function TasksPage() {
             onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+            onEdit={openEditModal}
             onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
             onAddTask={() => openModal("backlog")}
           />
@@ -237,6 +295,7 @@ function TasksPage() {
             onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+            onEdit={openEditModal}
             onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
             onAddTask={() => openModal("today")}
           />
@@ -256,6 +315,7 @@ function TasksPage() {
             onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
             onDelete={(t) => del.mutate(t.id)}
             onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+            onEdit={openEditModal}
           />
         </div>
       ) : (
@@ -282,6 +342,7 @@ function TasksPage() {
                     onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
                     onDelete={() => del.mutate(t.id)}
                     onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                    onEdit={() => openEditModal(t)}
                   />
                 ))}
               </div>
@@ -304,6 +365,7 @@ function TasksPage() {
                     onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
                     onDelete={() => del.mutate(t.id)}
                     onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                    onEdit={() => openEditModal(t)}
                   />
                 ))}
               </div>
@@ -326,6 +388,7 @@ function TasksPage() {
                     onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
                     onDelete={() => del.mutate(t.id)}
                     onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                    onEdit={() => openEditModal(t)}
                   />
                 ))}
               </div>
@@ -334,7 +397,7 @@ function TasksPage() {
         </div>
       )}
 
-      {/* Add Task Modal Card */}
+      {/* Add Task Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-md p-6">
           <form onSubmit={submit}>
@@ -380,6 +443,23 @@ function TasksPage() {
                   </Select>
                 </div>
               </div>
+
+              {folders.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="task-folder" className="text-xs font-semibold text-foreground">Folder / Project</Label>
+                  <Select value={folderId} onValueChange={setFolderId}>
+                    <SelectTrigger id="task-folder" className="border-input bg-background text-foreground text-xs h-9 rounded-xl">
+                      <SelectValue placeholder="No Folder" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground border-border">
+                      <SelectItem value="none">No Folder</SelectItem>
+                      {folders.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <DialogFooter className="gap-2 sm:gap-2 pt-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)} className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground text-xs rounded-xl h-9">
@@ -388,6 +468,94 @@ function TasksPage() {
               <Button type="submit" size="sm" disabled={create.isPending || !title.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold rounded-xl h-9 px-4 shadow-sm">
                 {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
                 Create Task
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-md p-6">
+          <form onSubmit={handleSaveEdit}>
+            <DialogHeader>
+              <DialogTitle className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" /> Edit Task
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-task-title" className="text-xs font-semibold text-foreground">Task Title</Label>
+                <Input
+                  id="edit-task-title"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Task title"
+                  className="border-input bg-background text-foreground text-sm h-10 rounded-xl"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-task-content" className="text-xs font-semibold text-foreground">Description / Notes</Label>
+                <Textarea
+                  id="edit-task-content"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="Add details, sub-notes, or links (optional)..."
+                  className="border-input bg-background text-foreground text-xs rounded-xl min-h-[70px] resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-task-due" className="text-xs font-semibold text-foreground">Due Date</Label>
+                  <Input
+                    id="edit-task-due"
+                    type="date"
+                    value={editDue}
+                    onChange={(e) => setEditDue(e.target.value)}
+                    className="border-input bg-background text-foreground text-xs h-9 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-task-priority" className="text-xs font-semibold text-foreground">Priority</Label>
+                  <Select value={editPriority} onValueChange={setEditPriority}>
+                    <SelectTrigger id="edit-task-priority" className="border-input bg-background text-foreground text-xs h-9 rounded-xl">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground border-border">
+                      {PRIORITIES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {folders.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-task-folder" className="text-xs font-semibold text-foreground">Folder / Project</Label>
+                  <Select value={editFolderId} onValueChange={setEditFolderId}>
+                    <SelectTrigger id="edit-task-folder" className="border-input bg-background text-foreground text-xs h-9 rounded-xl">
+                      <SelectValue placeholder="No Folder" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground border-border">
+                      <SelectItem value="none">No Folder</SelectItem>
+                      {folders.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditingTask(null)} className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground text-xs rounded-xl h-9">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={update.isPending || !editTitle.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold rounded-xl h-9 px-4 shadow-sm">
+                {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : "Save Changes"}
               </Button>
             </DialogFooter>
           </form>
@@ -412,6 +580,7 @@ interface KanbanColumnProps {
   onToggle: (task: Item) => void;
   onDelete: (task: Item) => void;
   onArchive: (task: Item) => void;
+  onEdit: (task: Item) => void;
   onMoveToToday?: (task: Item) => void;
   onMoveToBacklog?: (task: Item) => void;
   onAddTask?: () => void;
@@ -432,6 +601,7 @@ function KanbanColumn({
   onToggle,
   onDelete,
   onArchive,
+  onEdit,
   onMoveToToday,
   onMoveToBacklog,
   onAddTask,
@@ -488,6 +658,7 @@ function KanbanColumn({
               onToggle={() => onToggle(task)}
               onDelete={() => onDelete(task)}
               onArchive={() => onArchive(task)}
+              onEdit={() => onEdit(task)}
               onMoveToToday={onMoveToToday ? () => onMoveToToday(task) : undefined}
               onMoveToBacklog={onMoveToBacklog ? () => onMoveToBacklog(task) : undefined}
             />
@@ -506,11 +677,23 @@ interface TaskCardProps {
   onToggle: () => void;
   onDelete: () => void;
   onArchive: () => void;
+  onEdit: () => void;
   onMoveToToday?: () => void;
   onMoveToBacklog?: () => void;
 }
 
-function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, onArchive, onMoveToToday, onMoveToBacklog }: TaskCardProps) {
+function TaskCard({
+  task,
+  folders,
+  isDragging,
+  onDragStart,
+  onToggle,
+  onDelete,
+  onArchive,
+  onEdit,
+  onMoveToToday,
+  onMoveToBacklog,
+}: TaskCardProps) {
   const folder = folders.find((f) => f.id === task.folder_id);
   const overdue =
     task.due_date &&
@@ -533,10 +716,16 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
 
       <Checkbox checked={task.completed} onCheckedChange={onToggle} className="mt-0.5 h-3.5 w-3.5" />
 
-      <div className="min-w-0 flex-1">
-        <p className={cn("text-xs sm:text-[13px] font-medium text-foreground leading-snug", task.completed && "line-through text-muted-foreground")}>
+      <div className="min-w-0 flex-1 cursor-pointer" onClick={onEdit}>
+        <p className={cn("text-xs sm:text-[13px] font-medium text-foreground leading-snug hover:text-primary transition", task.completed && "line-through text-muted-foreground")}>
           {task.title}
         </p>
+
+        {task.content && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+            {task.content}
+          </p>
+        )}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
           {task.priority && (
@@ -577,6 +766,13 @@ function TaskCard({ task, folders, isDragging, onDragStart, onToggle, onDelete, 
       </div>
 
       <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 shrink-0 gap-0.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition"
+          title="Edit Task"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
         {onMoveToToday && (
           <button
             onClick={(e) => { e.stopPropagation(); onMoveToToday(); }}
