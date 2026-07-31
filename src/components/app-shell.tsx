@@ -14,7 +14,10 @@ import {
   Menu,
   Wallet,
   PanelLeftClose,
+  Sun,
+  Moon,
   Music,
+  Loader2,
 } from "lucide-react";
 import { apiClient } from "@/integrations/api/client";
 import { cn } from "@/lib/utils";
@@ -37,17 +40,43 @@ const NAV = [
   { to: "/archive", label: "Archive", icon: Archive },
 ] as const;
 
-const STORAGE_KEY = "lifeos.sidebar.open";
+const STORAGE_KEY = "lifepulse.sidebar.open";
+const THEME_STORAGE_KEY = "lifepulse.theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  // Single open/closed flag used on all breakpoints. Default open on desktop.
   const [open, setOpen] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Track mobile vs desktop
+  const pageTitle = (() => {
+    const found = NAV.find((n) => pathname === n.to || pathname.startsWith(n.to + "/"));
+    return found?.label ?? "LifePulse";
+  })();
+
+  useEffect(() => {
+    const savedTheme = (localStorage.getItem(THEME_STORAGE_KEY) as "dark" | "light") || "dark";
+    setTheme(savedTheme);
+    if (savedTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    if (next === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  };
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
     check();
@@ -55,7 +84,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Hydrate from localStorage after mount to avoid SSR mismatch.
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved !== null) setOpen(saved === "1");
@@ -66,7 +94,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
   }, [open]);
 
-  // Close sidebar on route change on small screens
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) setOpen(false);
   }, [pathname]);
@@ -77,30 +104,55 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const isFetching = useIsFetching();
+  const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
+  const isLoading = isNavigating || isFetching > 0;
 
   return (
     <div className="relative flex min-h-screen bg-cozy-grain">
-      {/* Global query loading bar */}
       <div
         className={cn(
-          "fixed top-0 left-0 right-0 z-[9999] h-[2px] overflow-hidden transition-opacity duration-300",
-          isFetching ? "opacity-100" : "opacity-0",
+          "fixed top-0 left-0 right-0 z-[9999] h-[3px] overflow-hidden transition-opacity duration-300 pointer-events-none",
+          isLoading ? "opacity-100" : "opacity-0",
         )}
       >
-        <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-transparent via-primary to-transparent" />
+        <div className="h-full w-full animate-loading-bar bg-gradient-to-r from-primary via-accent to-primary shadow-[0_0_12px_oklch(0.78_0.14_160/0.9)]" />
       </div>
-      {/* Floating top controls — visible when sidebar is closed */}
+
+      {isLoading && (
+        <div className="fixed top-4 right-4 z-[9999] flex items-center gap-2 rounded-full border border-white/10 bg-background/80 px-3 py-1.5 text-xs text-foreground shadow-soft backdrop-blur-xl animate-in fade-in duration-200 pointer-events-none">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span className="font-medium text-[11px]">Loading…</span>
+        </div>
+      )}
       {!open && (
-        <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between pointer-events-none">
+        <div className="fixed inset-x-4 top-3 z-50 flex items-center justify-between gap-2 pointer-events-none">
           <button
             onClick={() => setOpen(true)}
             aria-label="Show sidebar"
-            className="pointer-events-auto grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
+            className="pointer-events-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
           >
             <Menu className="h-4 w-4" />
           </button>
-          <div className="pointer-events-auto">
+
+          <span className="flex-1 text-center text-sm font-semibold text-foreground truncate px-2 pointer-events-none">
+            {pageTitle}
+          </span>
+
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground backdrop-blur-xl transition-all hover:bg-white/10 hover:text-foreground"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
+            </button>
             <NotificationBell />
+            <img
+              src="/logo.png"
+              alt="LifePulse"
+              className="h-8 w-8 rounded-xl object-cover border border-white/10 shadow-soft"
+            />
           </div>
         </div>
       )}
@@ -111,23 +163,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        {/* subtle top glow */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/15 to-transparent" />
 
         <div className="relative flex h-16 items-center gap-3 px-5">
           <img
             src="/logo.png"
-            alt="LifeOS Logo"
+            alt="LifePulse Logo"
             className="h-10 w-10 rounded-2xl object-cover shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)] border border-white/10"
           />
           <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg font-semibold text-gradient-primary">LifeOS</span>
+            <span className="font-display text-lg font-semibold text-gradient-primary">LifePulse</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
           </div>
-          {/* Notification Bell */}
           <div className="ml-auto flex items-center gap-1.5">
-            <NotificationBell />
-            {/* Close button — lives inside the sidebar header, never overlaps page content */}
             <button
               onClick={() => setOpen(false)}
               aria-label="Hide sidebar"
@@ -179,14 +227,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="relative border-t border-sidebar-border p-3">
+        <div className="relative border-t border-sidebar-border p-3 flex items-center justify-between gap-2">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            className="flex-1 justify-start gap-2 text-muted-foreground hover:text-foreground"
             onClick={signOut}
           >
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            className="hidden lg:grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
+          </button>
         </div>
       </aside>
 
@@ -203,14 +258,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           open ? "lg:ml-64" : "lg:ml-0",
         )}
       >
-        <main
+        <div
           className={cn(
             "min-w-0 flex-1 pt-12 lg:pt-0 transition-[padding] duration-300",
             !open && "pl-0 lg:pl-14",
           )}
         >
           {children}
-        </main>
+        </div>
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
@@ -221,5 +276,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-

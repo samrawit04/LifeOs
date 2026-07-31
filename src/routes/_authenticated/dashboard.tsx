@@ -9,22 +9,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-function parseNotebookSnippet(raw: string | null): string {
-  if (!raw) return "Empty notebook page";
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.blocks)) {
-      const text = parsed.blocks
-        .map((b: any) => (typeof b.content === "string" ? b.content.trim() : ""))
-        .filter(Boolean)
-        .join(" ");
-      return text || "Empty notebook page";
-    }
-  } catch {
-    return raw.trim() || "Empty notebook page";
-  }
-  return raw.trim() || "Empty notebook page";
-}
+
 
 function Dashboard() {
   const { data: items = [] } = useItems();
@@ -42,7 +27,6 @@ function Dashboard() {
 
   const pinnedNotes = active.filter((i) => i.type === "sticky" && i.pinned).slice(0, 4);
   const recentNotes = active.filter((i) => i.type === "sticky").slice(0, 6);
-  const recentPages = active.filter((i) => i.type === "notebook_page").slice(0, 5);
 
   const stats = [
     { label: "Sticky notes", value: active.filter((i) => i.type === "sticky").length, icon: StickyNote, tint: "from-note-yellow/30 to-transparent" },
@@ -58,16 +42,15 @@ function Dashboard() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             {format(new Date(), "EEEE · MMMM d, yyyy")}
           </div>
-          <h1 className="mt-2 sm:mt-4 font-display text-3xl font-semibold leading-tight text-gradient-primary sm:text-5xl">
+          <h1 className="mt-2 sm:mt-4 font-display text-xl sm:text-3xl lg:text-4xl font-semibold leading-tight text-gradient-primary">
             Good {greeting()}.
           </h1>
-          <p className="mt-1 sm:mt-2 max-w-xl text-xs sm:text-base text-muted-foreground">
+          <p className="mt-1 sm:mt-2 max-w-xl text-xs sm:text-sm text-muted-foreground">
             Your quiet corner of the internet — a soft glance at everything on your mind today.
           </p>
         </div>
       </header>
 
-      {/* Stat strip */}
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, tint }) => (
           <div key={label} className="glass-card relative overflow-hidden rounded-2xl p-5">
@@ -79,7 +62,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Today's calendar" icon={CalendarDays} to="/calendar" accent="from-primary/20">
           {todayEvents.length === 0 ? (
             <Empty text="Nothing scheduled. Enjoy the space." />
@@ -117,21 +100,6 @@ function Dashboard() {
                       Due {relDate(t.due_date!)}
                     </p>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="Recently edited" icon={NotebookText} to="/notebooks" accent="from-note-blue/20">
-          {recentPages.length === 0 ? (
-            <Empty text="No notebook pages yet." />
-          ) : (
-            <ul className="space-y-2">
-              {recentPages.map((p) => (
-                <li key={p.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]">
-                  <p className="truncate font-medium text-foreground">{p.title || "Untitled"}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{parseNotebookSnippet(p.content)}</p>
                 </li>
               ))}
             </ul>

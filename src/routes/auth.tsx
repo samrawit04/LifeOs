@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+import { Eye, EyeOff } from "lucide-react";
+
 const searchSchema = z.object({
   mode: fallback(z.string(), "signin").default("signin"),
 });
@@ -16,8 +18,8 @@ export const Route = createFileRoute("/auth")({
   validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
-      { title: "Sign in · LifeOS" },
-      { name: "description", content: "Sign in to your LifeOS workspace." },
+      { title: "Sign in · LifePulse" },
+      { name: "description", content: "Sign in to your LifePulse workspace." },
     ],
   }),
   component: AuthPage,
@@ -29,6 +31,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const childMatches = useChildMatches();
 
@@ -74,7 +77,7 @@ function AuthPage() {
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-lagoon text-cream font-display text-lg">
             L
           </div>
-          <span className="font-display text-xl font-semibold text-lagoon">LifeOS</span>
+          <span className="font-display text-xl font-semibold text-lagoon">LifePulse</span>
         </Link>
 
         <div className="rounded-3xl border bg-card p-7 shadow-soft">
@@ -110,7 +113,29 @@ function AuthPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button type="submit" disabled={loading} className="w-full bg-lagoon text-cream hover:bg-lagoon/90">
               {loading ? "…" : isSignup ? "Create account" : "Sign in"}
@@ -118,7 +143,7 @@ function AuthPage() {
           </form>
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            {isSignup ? "Already have an account?" : "New to LifeOS?"}{" "}
+            {isSignup ? "Already have an account?" : "New to LifePulse?"}{" "}
             <Link
               to="/auth"
               search={{ mode: isSignup ? "signin" : "signup" }}

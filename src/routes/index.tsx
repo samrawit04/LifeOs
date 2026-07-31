@@ -36,7 +36,7 @@ function Landing() {
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)]">
             <Sparkles className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-semibold text-gradient-primary">LifeOS</span>
+          <span className="font-display text-xl font-semibold text-gradient-primary">LifePulse</span>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/auth">
@@ -62,7 +62,7 @@ function Landing() {
               <span className="text-foreground"> — all under one soft light.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-              LifeOS gathers your loose thoughts, upcoming plans, and running to-dos into a single
+              LifePulse gathers your loose thoughts, upcoming plans, and running to-dos into a single
               elegant workspace. Draggable notes, nested notebooks, and a calm calendar — the
               morning glance you actually want to open.
             </p>

@@ -29,6 +29,7 @@ interface YTPlayer {
   playVideo(): void;
   pauseVideo(): void;
   loadVideoById(videoId: string): void;
+  getIframe?(): HTMLIFrameElement;
   destroy(): void;
 }
 
@@ -66,6 +67,7 @@ export function GlobalAudioPlayer() {
   const pendingVideoRef = useRef<string | null>(null);
   const nextRef = useRef(next);
   nextRef.current = next;
+  const [isReady, setIsReady] = useState(false);
   const [slotRect, setSlotRect] = useState<{
     top: number;
     left: number;
@@ -81,7 +83,7 @@ export function GlobalAudioPlayer() {
     loadYouTubeApi(() => {
       if (destroyed) return;
 
-      const player = new window.YT.Player(playerDivId.current, {
+      new window.YT.Player(playerDivId.current, {
         width: "100%",
         height: "100%",
         // Intentionally no videoId — prevents the broken black-screen init
@@ -94,6 +96,7 @@ export function GlobalAudioPlayer() {
         },
         events: {
           onReady: (e) => {
+            if (destroyed) return;
             playerRef.current = e.target;
             // Style the generated iframe to fill its container
             const container = document.getElementById(playerDivId.current);
@@ -102,6 +105,7 @@ export function GlobalAudioPlayer() {
               iframe.style.width = "100%";
               iframe.style.height = "100%";
               iframe.style.border = "none";
+              iframe.style.display = "block";
             }
             // Play any video that was requested before the player was ready
             if (pendingVideoRef.current) {
@@ -118,18 +122,18 @@ export function GlobalAudioPlayer() {
           },
         },
       });
-      playerRef.current = player;
     });
 
     return () => {
       destroyed = true;
       try { playerRef.current?.destroy(); } catch { /* ignore */ }
       playerRef.current = null;
+      setIsReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once
 
-  // Load new video or play/pause when state changes
+  // Load new video or play/pause when state changes or player becomes ready
   useEffect(() => {
     if (!currentVideo) return;
 
@@ -142,16 +146,21 @@ export function GlobalAudioPlayer() {
     if (currentVideoIdRef.current !== currentVideo.videoId) {
       // New video — load it (autoplay happens automatically via loadVideoById)
       currentVideoIdRef.current = currentVideo.videoId;
-      playerRef.current.loadVideoById(currentVideo.videoId);
-    } else {
-      // Same video — just play or pause
-      if (isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
+      if (typeof playerRef.current.loadVideoById === "function") {
+        playerRef.current.loadVideoById(currentVideo.videoId);
       }
     }
-  }, [currentVideo, isPlaying]);
+
+    if (isPlaying) {
+      if (typeof playerRef.current.playVideo === "function") {
+        try { playerRef.current.playVideo(); } catch { /* ignore */ }
+      }
+    } else {
+      if (typeof playerRef.current.pauseVideo === "function") {
+        try { playerRef.current.pauseVideo(); } catch { /* ignore */ }
+      }
+    }
+  }, [currentVideo, isPlaying, isReady]);
 
   // Track position of #music-player-slot on /music page
   useEffect(() => {
@@ -201,26 +210,26 @@ export function GlobalAudioPlayer() {
       style={
         isVisibleOnMusicPage
           ? {
-              position: "fixed",
-              top: `${slotRect!.top}px`,
-              left: `${slotRect!.left}px`,
-              width: `${slotRect!.width}px`,
-              height: `${slotRect!.height}px`,
-              zIndex: 25,
-              pointerEvents: "auto",
-              borderRadius: "1rem",
-              overflow: "hidden",
-            }
+            position: "fixed",
+            top: `${slotRect!.top}px`,
+            left: `${slotRect!.left}px`,
+            width: `${slotRect!.width}px`,
+            height: `${slotRect!.height}px`,
+            zIndex: 25,
+            pointerEvents: "auto",
+            borderRadius: "1rem",
+            overflow: "hidden",
+          }
           : {
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              width: "1px",
-              height: "1px",
-              opacity: 0.001,
-              pointerEvents: "none",
-              zIndex: -1,
-            }
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            width: "1px",
+            height: "1px",
+            opacity: 0.001,
+            pointerEvents: "none",
+            zIndex: -1,
+          }
       }
     >
       {/* YT.Player mounts inside this div — always in DOM so the player ref stays alive */}

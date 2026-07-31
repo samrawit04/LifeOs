@@ -62,7 +62,7 @@ class ApiClient {
 
   private get token() {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("lifeos_jwt");
+      return sessionStorage.getItem("lifepulse_jwt");
     }
     return null;
   }
@@ -87,7 +87,7 @@ class ApiClient {
 
     if (response.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("lifeos_jwt");
+        sessionStorage.removeItem("lifepulse_jwt");
       }
     }
 
@@ -127,33 +127,43 @@ class ApiClient {
 
   // Auth Operations
   auth = {
-    signUp: async (data: any): Promise<AuthResponse> => {
-      const res = await this.post<AuthResponse>("/api/auth/register", data);
+    login: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
+      const res = await this.post<AuthResponse>("/api/auth/login", payload);
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        sessionStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
     },
 
-    signInWithPassword: async (data: any): Promise<AuthResponse> => {
-      const res = await this.post<AuthResponse>("/api/auth/login", data);
+    register: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      const payload = typeof emailOrData === "string" ? { email: emailOrData, password } : emailOrData;
+      const res = await this.post<AuthResponse>("/api/auth/register", payload);
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        sessionStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
+    },
+
+    signUp: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      return this.auth.register(emailOrData, password);
+    },
+
+    signInWithPassword: async (emailOrData: string | { email: string; password: string }, password?: string): Promise<AuthResponse> => {
+      return this.auth.login(emailOrData, password);
     },
 
     signInWithGoogleCredential: async (credential: string): Promise<AuthResponse> => {
       const res = await this.post<AuthResponse>("/api/auth/google", { credential });
       if (typeof window !== "undefined") {
-        localStorage.setItem("lifeos_jwt", res.token);
+        sessionStorage.setItem("lifepulse_jwt", res.token);
       }
       return res;
     },
 
     signOut: async (): Promise<void> => {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("lifeos_jwt");
+        sessionStorage.removeItem("lifepulse_jwt");
       }
     },
 
@@ -166,16 +176,22 @@ class ApiClient {
       }
     },
 
+    setSessionToken: (token: string): void => {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("lifepulse_jwt", token);
+        window.dispatchEvent(new CustomEvent("lifepulse-auth-change", { detail: { token } }));
+      }
+    },
+
     onAuthStateChange: (callback: (event: string) => void) => {
-      const handleStorage = (e: StorageEvent) => {
-        if (e.key === "lifeos_jwt") {
-          callback(e.newValue ? "SIGNED_IN" : "SIGNED_OUT");
-        }
+      const handleCustom = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        callback(detail?.token ? "SIGNED_IN" : "SIGNED_OUT");
       };
-      window.addEventListener("storage", handleStorage);
+      window.addEventListener("lifepulse-auth-change", handleCustom);
       return {
         subscription: {
-          unsubscribe: () => window.removeEventListener("storage", handleStorage),
+          unsubscribe: () => window.removeEventListener("lifepulse-auth-change", handleCustom),
         },
       };
     },
@@ -295,7 +311,7 @@ class ApiClient {
     },
 
     markAllRead: (): Promise<void> =>
-      this.patch<void>("/api/notifications/read-all"),
+      this.patch<void>("/api/notifications/read-all", {}),
 
     delete: (id: string): Promise<void> =>
       this.delete<void>(`/api/notifications/${id}`),

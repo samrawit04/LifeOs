@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useItems } from "@/hooks/use-lifeos";
 import { useExpenses } from "@/hooks/use-expenses";
-import { LifeOSChat, type ChatMessage } from "@/lib/gemini";
+import { LifePulseChat, type ChatMessage } from "@/lib/gemini";
 import { ChatBubbleButton } from "./chat-bubble";
 import { ChatPanel } from "./chat-panel";
 
@@ -17,10 +17,10 @@ export function AiChat() {
   const { data: expenses = [] } = useExpenses();
 
   // Keep a stable chat instance; rebuild when data changes meaningfully
-  const chatRef = useRef<LifeOSChat | null>(null);
+  const chatRef = useRef<LifePulseChat | null>(null);
 
   useEffect(() => {
-    chatRef.current = new LifeOSChat(items, expenses);
+    chatRef.current = new LifePulseChat(items, expenses);
   }, [items, expenses]);
 
   const handleSend = useCallback(async () => {
@@ -34,7 +34,7 @@ export function AiChat() {
 
     try {
       if (!chatRef.current) {
-        chatRef.current = new LifeOSChat(items, expenses);
+        chatRef.current = new LifePulseChat(items, expenses);
       }
       const reply = await chatRef.current.send(text);
       setMessages((prev) => [...prev, { role: "model", text: reply }]);
@@ -57,14 +57,14 @@ export function AiChat() {
 
   const handleReset = () => {
     chatRef.current?.reset();
-    chatRef.current = new LifeOSChat(items, expenses);
+    chatRef.current = new LifePulseChat(items, expenses);
     setMessages([]);
     setError(null);
     setInput("");
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
+    <div className="fixed bottom-16 right-3 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2.5 pointer-events-none">
       {/* Panel — slides up */}
       <div
         className="transition-all duration-300 origin-bottom-right"

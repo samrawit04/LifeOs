@@ -12,6 +12,12 @@ import {
   useDeleteExpense,
   useExpenses,
 } from "@/hooks/use-expenses";
+import {
+  usePlannedPurchases,
+  useCreatePlannedPurchase,
+  useUpdatePlannedPurchase,
+  useDeletePlannedPurchase,
+} from "@/hooks/use-planned-purchases";
 import { EXPENSE_CATEGORIES, categoryEmoji } from "@/lib/lifeos-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,14 +34,6 @@ export const Route = createFileRoute("/_authenticated/expenses")({
   component: ExpensesPage,
 });
 
-interface PlannedPurchase {
-  id: string;
-  name: string;
-  amount: number;
-  category: string;
-  purchased: boolean;
-}
-
 type PeriodType = "today" | "week" | "month" | "last_month" | "all";
 
 const CURRENCY = "Birr";
@@ -44,6 +42,10 @@ function ExpensesPage() {
   const { data: expenses = [] } = useExpenses();
   const create = useCreateExpense();
   const del = useDeleteExpense();
+  const { data: plannedPurchases = [] } = usePlannedPurchases();
+  const createPurchase = useCreatePlannedPurchase();
+  const updatePurchase = useUpdatePlannedPurchase();
+  const deletePurchase = useDeletePlannedPurchase();
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<string>("Food");
@@ -78,7 +80,7 @@ function ExpensesPage() {
   // Category Budgets State (Defaulting to user's parameters)
   const [categoryBudgets, setCategoryBudgets] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lifeos.expenses.category_budgets");
+      const saved = localStorage.getItem("lifepulse.expenses.category_budgets");
       return saved ? JSON.parse(saved) : { Food: 4000, Transport: 3000, Shopping: 1000 };
     }
     return { Food: 4000, Transport: 3000, Shopping: 1000 };
@@ -92,19 +94,6 @@ function ExpensesPage() {
   const monthlyBudget = useMemo(() => {
     return Object.values(categoryBudgets).reduce((sum, val) => sum + val, 0);
   }, [categoryBudgets]);
-
-  // Wishlist/Planned Purchases State
-  const [plannedPurchases, setPlannedPurchases] = useState<PlannedPurchase[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lifeos.expenses.planned_purchases");
-      return saved ? JSON.parse(saved) : [
-        { id: "1", name: "Buy T-shirt", amount: 1000, category: "Shopping", purchased: false }
-      ];
-    }
-    return [
-      { id: "1", name: "Buy T-shirt", amount: 1000, category: "Shopping", purchased: false }
-    ];
-  });
 
   const [wishlistName, setWishlistName] = useState("");
   const [wishlistAmount, setWishlistAmount] = useState("");
@@ -312,7 +301,7 @@ function ExpensesPage() {
       }
     });
     setCategoryBudgets(next);
-    localStorage.setItem("lifeos.expenses.category_budgets", JSON.stringify(next));
+    localStorage.setItem("lifepulse.expenses.category_budgets", JSON.stringify(next));
     setIsCategoryBudgetOpen(false);
     toast.success("Category budgets updated!");
   };
@@ -324,30 +313,31 @@ function ExpensesPage() {
     if (!wishlistName.trim() || isNaN(amt) || amt <= 0) {
       return toast.error("Please enter item name and valid amount");
     }
-    const item: PlannedPurchase = {
-      id: crypto.randomUUID(),
-      name: wishlistName.trim(),
-      amount: amt,
-      category: wishlistCategory,
-      purchased: false,
-    };
-    const next = [...plannedPurchases, item];
-    setPlannedPurchases(next);
-    localStorage.setItem("lifeos.expenses.planned_purchases", JSON.stringify(next));
-    setWishlistName("");
-    setWishlistAmount("");
-    toast.success("Planned purchase added!");
+    createPurchase.mutate(
+      { name: wishlistName.trim(), amount: amt, category: wishlistCategory },
+      {
+        onSuccess: () => {
+          setWishlistName("");
+          setWishlistAmount("");
+          toast.success("Planned purchase added!");
+        },
+        onError: (err) => toast.error(err.message),
+      }
+    );
   };
 
   // Purchase/Convert wishlist item to actual expense
-  const handleBuyWishlistItem = (item: PlannedPurchase) => {
+  const handleBuyWishlistItem = (item: { id: string; name: string; amount: number; category: string; purchased: boolean }) => {
     create.mutate(
       { amount: item.amount, category: item.category, note: item.name },
       {
         onSuccess: () => {
-          const next = plannedPurchases.map((p) => p.id === item.id ? { ...p, purchased: true } : p);
-          setPlannedPurchases(next);
-          localStorage.setItem("lifeos.expenses.planned_purchases", JSON.stringify(next));
+          updatePurchase.mutate(
+            { id: item.id, patch: { purchased: true } },
+            {
+              onError: (err) => toast.error(err.message),
+            }
+          );
           toast.success(`Purchased "${item.name}" and added to daily expenses!`);
         },
         onError: (err) => toast.error(err.message),
@@ -357,10 +347,10 @@ function ExpensesPage() {
 
   // Delete planned purchase item
   const handleDeleteWishlistItem = (id: string) => {
-    const next = plannedPurchases.filter((p) => p.id !== id);
-    setPlannedPurchases(next);
-    localStorage.setItem("lifeos.expenses.planned_purchases", JSON.stringify(next));
-    toast.success("Item removed");
+    deletePurchase.mutate(id, {
+      onSuccess: () => toast.success("Item removed"),
+      onError: (err) => toast.error(err.message),
+    });
   };
 
   return (
@@ -371,7 +361,7 @@ function ExpensesPage() {
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-muted-foreground">
             <Wallet className="h-3 w-3 text-primary" /> Money OS
           </div>
-          <h1 className="mt-1.5 sm:mt-3 font-display text-3xl sm:text-4xl text-gradient-primary">Expenses</h1>
+          <h1 className="mt-1.5 sm:mt-3 font-display text-xl sm:text-3xl text-gradient-primary">Expenses</h1>
           <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">
             A simple, calm space to log and analyze your spending.
           </p>

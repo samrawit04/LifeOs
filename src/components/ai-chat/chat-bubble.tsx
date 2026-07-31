@@ -44,7 +44,7 @@ export function ChatBubbleButton({ open, onClick, hasUnread }: ChatBubbleButtonP
 
       <img
         src="/logo.png"
-        alt="LifeOS AI"
+        alt="LifePulse AI"
         className={cn(
           "h-7 w-7 rounded-xl object-cover shadow-sm transition-transform duration-300",
           !open && "group-hover:scale-110",

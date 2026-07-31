@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Playlist> Playlists => Set<Playlist>();
     public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<PlannedPurchase> PlannedPurchases => Set<PlannedPurchase>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -130,6 +131,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(n => n.Link).HasMaxLength(300);
             e.HasIndex(n => new { n.UserId, n.CreatedAt });
         });
+
+        // ── PlannedPurchase ─────────────────────────────────────────────────
+        model.Entity<PlannedPurchase>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasOne(p => p.User)
+             .WithMany(u => u.PlannedPurchases)
+             .HasForeignKey(p => p.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(p => p.Amount).HasColumnType("numeric(12,2)");
+            e.Property(p => p.Category).HasDefaultValue("Shopping");
+            e.Property(p => p.Name).HasMaxLength(500).IsRequired();
+            e.HasIndex(p => p.UserId);
+        });
     }
 
     // Auto-update UpdatedAt on every SaveChanges
@@ -144,6 +160,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 if (entry.Entity is Item i) i.UpdatedAt = now;
                 if (entry.Entity is Expense ex) ex.UpdatedAt = now;
                 if (entry.Entity is Playlist p) p.UpdatedAt = now;
+                if (entry.Entity is PlannedPurchase pp) pp.UpdatedAt = now;
             }
         }
         return base.SaveChangesAsync(ct);
