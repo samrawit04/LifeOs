@@ -137,6 +137,3 @@ lifepulse/
 
 ---
 
-## License
-
-MIT
