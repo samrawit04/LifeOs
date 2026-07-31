@@ -71,10 +71,10 @@ function StickyBoard() {
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-56px)] flex-col p-3 sm:p-6 lg:h-screen">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/60 px-4 sm:px-6 py-3.5 backdrop-blur rounded-2xl mb-3">
+    <div className="relative flex h-[calc(100dvh-48px)] lg:h-dvh flex-col p-3 sm:p-4 lg:p-6 overflow-hidden">
+      <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/60 px-4 sm:px-6 py-3 backdrop-blur rounded-2xl mb-3">
         <div>
-          <h1 className="font-display text-xl sm:text-3xl text-gradient-primary">Sticky Board</h1>
+          <h1 className="font-display text-xl sm:text-2xl lg:text-3xl text-gradient-primary">Sticky Board</h1>
           <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
             Double-click or tap anywhere on the board to drop a note.
           </p>
@@ -84,7 +84,7 @@ function StickyBoard() {
           <Button
             onClick={handleAddCenter}
             size="sm"
-            className="h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5"
+            className="h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold gap-1.5 shadow-sm"
           >
             <Plus className="h-4 w-4" /> Add Note
           </Button>
@@ -95,8 +95,7 @@ function StickyBoard() {
         ref={boardRef}
         onDoubleClick={onDoubleClick}
         onTouchEnd={onTouchEnd}
-        className="relative flex-1 overflow-auto bg-corkboard rounded-2xl"
-        style={{ minHeight: 550 }}
+        className="relative flex-1 min-h-0 overflow-auto bg-corkboard rounded-2xl"
       >
         <div className="relative h-[1800px] w-[1800px]">
           {notes.map((n) => (
