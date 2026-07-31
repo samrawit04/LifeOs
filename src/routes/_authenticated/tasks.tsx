@@ -211,8 +211,9 @@ function TasksPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8">
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col h-[calc(100dvh-48px)] lg:h-dvh overflow-hidden">
+      {/* Sticky header — never scrolls */}
+      <header className="shrink-0 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 pt-4 pb-4 sm:pt-6 sm:pb-5 border-b border-border/40">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl text-lagoon">
             Task Board
@@ -252,150 +253,154 @@ function TasksPage() {
         </div>
       </header>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-96 rounded-2xl border bg-card p-4 animate-skeleton" />
-          ))}
-        </div>
-      ) : viewMode === "board" ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          <KanbanColumn
-            columnId="backlog"
-            title="All Tasks"
-            icon={<Clock className="h-4 w-4 text-amber-500" />}
-            tasks={backlogTasks}
-            folders={folders}
-            isActiveDrop={activeDropTarget === "backlog"}
-            draggedItemId={draggedItemId}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-            onDelete={(t) => del.mutate(t.id)}
-            onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
-            onEdit={openEditModal}
-            onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
-            onAddTask={() => openModal("backlog")}
-          />
+      {/* Scrollable task area only */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
 
-          <KanbanColumn
-            columnId="today"
-            title="Today's Focus"
-            icon={<CalendarDays className="h-4 w-4 text-primary" />}
-            tasks={todayTasks}
-            folders={folders}
-            isActiveDrop={activeDropTarget === "today"}
-            draggedItemId={draggedItemId}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-            onDelete={(t) => del.mutate(t.id)}
-            onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
-            onEdit={openEditModal}
-            onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
-            onAddTask={() => openModal("today")}
-          />
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-96 rounded-2xl border bg-card p-4 animate-skeleton" />
+            ))}
+          </div>
+        ) : viewMode === "board" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <KanbanColumn
+              columnId="backlog"
+              title="All Tasks"
+              icon={<Clock className="h-4 w-4 text-amber-500" />}
+              tasks={backlogTasks}
+              folders={folders}
+              isActiveDrop={activeDropTarget === "backlog"}
+              draggedItemId={draggedItemId}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+              onDelete={(t) => del.mutate(t.id)}
+              onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+              onEdit={openEditModal}
+              onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
+              onAddTask={() => openModal("backlog")}
+            />
 
-          <KanbanColumn
-            columnId="done"
-            title="Done"
-            icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-            tasks={doneTasks}
-            folders={folders}
-            isActiveDrop={activeDropTarget === "done"}
-            draggedItemId={draggedItemId}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-            onDelete={(t) => del.mutate(t.id)}
-            onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
-            onEdit={openEditModal}
-          />
-        </div>
-      ) : (
-        <div className="mx-auto max-w-3xl space-y-6">
-          {backlogTasks.length === 0 && todayTasks.length === 0 && doneTasks.length === 0 && (
-            <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
-              A quiet list. Add your first task above.
-            </div>
-          )}
+            <KanbanColumn
+              columnId="today"
+              title="Today's Focus"
+              icon={<CalendarDays className="h-4 w-4 text-primary" />}
+              tasks={todayTasks}
+              folders={folders}
+              isActiveDrop={activeDropTarget === "today"}
+              draggedItemId={draggedItemId}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+              onDelete={(t) => del.mutate(t.id)}
+              onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+              onEdit={openEditModal}
+              onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
+              onAddTask={() => openModal("today")}
+            />
 
-          {todayTasks.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-sm font-semibold text-primary flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4" /> Today ({todayTasks.length})
-              </h2>
-              <div className="space-y-2">
-                {todayTasks.map((t) => (
-                  <TaskCard
-                    key={t.id}
-                    task={t}
-                    folders={folders}
-                    isDragging={draggedItemId === t.id}
-                    onDragStart={handleDragStart}
-                    onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                    onDelete={() => del.mutate(t.id)}
-                    onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
-                    onEdit={() => openEditModal(t)}
-                  />
-                ))}
+            <KanbanColumn
+              columnId="done"
+              title="Done"
+              icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+              tasks={doneTasks}
+              folders={folders}
+              isActiveDrop={activeDropTarget === "done"}
+              draggedItemId={draggedItemId}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+              onDelete={(t) => del.mutate(t.id)}
+              onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
+              onEdit={openEditModal}
+            />
+          </div>
+        ) : (
+          <div className="mx-auto max-w-3xl space-y-6">
+            {backlogTasks.length === 0 && todayTasks.length === 0 && doneTasks.length === 0 && (
+              <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
+                A quiet list. Add your first task above.
               </div>
-            </div>
-          )}
+            )}
 
-          {backlogTasks.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-sm font-semibold text-lagoon flex items-center gap-1.5">
-                <Clock className="h-4 w-4" /> Backlog ({backlogTasks.length})
-              </h2>
-              <div className="space-y-2">
-                {backlogTasks.map((t) => (
-                  <TaskCard
-                    key={t.id}
-                    task={t}
-                    folders={folders}
-                    isDragging={draggedItemId === t.id}
-                    onDragStart={handleDragStart}
-                    onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                    onDelete={() => del.mutate(t.id)}
-                    onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
-                    onEdit={() => openEditModal(t)}
-                  />
-                ))}
+            {todayTasks.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-sm font-semibold text-primary flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" /> Today ({todayTasks.length})
+                </h2>
+                <div className="space-y-2">
+                  {todayTasks.map((t) => (
+                    <TaskCard
+                      key={t.id}
+                      task={t}
+                      folders={folders}
+                      isDragging={draggedItemId === t.id}
+                      onDragStart={handleDragStart}
+                      onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+                      onDelete={() => del.mutate(t.id)}
+                      onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                      onEdit={() => openEditModal(t)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {doneTasks.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4" /> Completed ({doneTasks.length})
-              </h2>
-              <div className="space-y-2">
-                {doneTasks.map((t) => (
-                  <TaskCard
-                    key={t.id}
-                    task={t}
-                    folders={folders}
-                    isDragging={draggedItemId === t.id}
-                    onDragStart={handleDragStart}
-                    onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                    onDelete={() => del.mutate(t.id)}
-                    onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
-                    onEdit={() => openEditModal(t)}
-                  />
-                ))}
+            {backlogTasks.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-sm font-semibold text-lagoon flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" /> Backlog ({backlogTasks.length})
+                </h2>
+                <div className="space-y-2">
+                  {backlogTasks.map((t) => (
+                    <TaskCard
+                      key={t.id}
+                      task={t}
+                      folders={folders}
+                      isDragging={draggedItemId === t.id}
+                      onDragStart={handleDragStart}
+                      onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+                      onDelete={() => del.mutate(t.id)}
+                      onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                      onEdit={() => openEditModal(t)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+
+            {doneTasks.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" /> Completed ({doneTasks.length})
+                </h2>
+                <div className="space-y-2">
+                  {doneTasks.map((t) => (
+                    <TaskCard
+                      key={t.id}
+                      task={t}
+                      folders={folders}
+                      isDragging={draggedItemId === t.id}
+                      onDragStart={handleDragStart}
+                      onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
+                      onDelete={() => del.mutate(t.id)}
+                      onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
+                      onEdit={() => openEditModal(t)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Add Task Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
