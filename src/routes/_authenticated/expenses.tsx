@@ -950,12 +950,12 @@ function ExpensesPage() {
         </div>
       )}
 
-      {/* View Budget Plan Dialog (MADE NARROWER & COMPACT) */}
+      {/* View Budget Plan Dialog (Theme aware & high-contrast) */}
       <Dialog open={isViewPlanOpen} onOpenChange={setIsViewPlanOpen}>
-        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[420px]">
-          <DialogHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-4">
+        <DialogContent className="border-border bg-card text-card-foreground sm:max-w-[420px] shadow-xl">
+          <DialogHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
             <div>
-              <DialogTitle className="font-display text-xl text-lagoon">Monthly Budget Plan</DialogTitle>
+              <DialogTitle className="font-display text-xl text-foreground font-bold">Monthly Budget Plan</DialogTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 Total: <span className="font-bold text-foreground">{monthlyBudget.toFixed(2)} {CURRENCY}</span>
               </p>
@@ -967,7 +967,7 @@ function ExpensesPage() {
               }}
               variant="outline"
               size="sm"
-              className="border-white/10 bg-white/[0.03] hover:bg-white/[0.08] mr-6"
+              className="border-border bg-muted/50 hover:bg-muted text-foreground mr-6"
             >
               <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
             </Button>
@@ -982,30 +982,30 @@ function ExpensesPage() {
               const percent = limit > 0 ? (actual / limit) * 100 : 0;
               
               return (
-                <div key={c.value} className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex flex-col justify-between">
+                <div key={c.value} className="bg-muted/40 border border-border/60 rounded-xl p-3 flex flex-col justify-between transition-colors">
                   <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="flex items-center gap-1.5 font-medium">
+                    <span className="flex items-center gap-1.5 font-semibold text-foreground">
                       <span>{c.emoji}</span> {c.value}
                     </span>
-                    <span className="text-muted-foreground text-[11px]">
+                    <span className="text-muted-foreground text-[11px] font-medium">
                       {limit > 0 ? `${limit} ${CURRENCY}` : "Uncapped"}
                     </span>
                   </div>
 
                   <div className="space-y-1">
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div 
                         className={cn(
                           "h-full rounded-full transition-all duration-300",
-                          percent > 100 ? "bg-destructive" : percent > 85 ? "bg-amber-400" : "bg-primary"
+                          percent > 100 ? "bg-destructive" : percent > 85 ? "bg-amber-500" : "bg-primary"
                         )}
                         style={{ width: `${limit > 0 ? Math.min(percent, 100) : 0}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[9px] text-muted-foreground/80">
+                    <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
                       <span>Spent: {actual.toFixed(2)} {CURRENCY}</span>
                       {limit > 0 && (
-                        <span className={cn(percent > 100 ? "text-destructive font-semibold" : "")}>
+                        <span className={cn(percent > 100 ? "text-destructive font-semibold" : "text-muted-foreground")}>
                           {percent.toFixed(0)}%
                         </span>
                       )}
@@ -1016,20 +1016,20 @@ function ExpensesPage() {
             })}
           </div>
           
-          <DialogFooter className="border-t border-white/5 pt-3">
-            <Button onClick={() => setIsViewPlanOpen(false)} className="w-full bg-lagoon text-cream hover:bg-lagoon/90 h-9 text-xs">
+          <DialogFooter className="border-t border-border pt-3">
+            <Button onClick={() => setIsViewPlanOpen(false)} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold">
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Category Budgets Dialog (MADE COMPACT & STACKED LIST) */}
+      {/* Edit Category Budgets Dialog (Theme aware & high-contrast) */}
       <Dialog open={isCategoryBudgetOpen} onOpenChange={setIsCategoryBudgetOpen}>
-        <DialogContent className="border-white/10 bg-[#1e1a1d] text-foreground sm:max-w-[400px]">
+        <DialogContent className="border-border bg-card text-card-foreground sm:max-w-[400px] shadow-xl">
           <form onSubmit={handleSaveCategoryBudgets}>
             <DialogHeader>
-              <DialogTitle className="font-display text-lg text-lagoon">Monthly Budget Settings</DialogTitle>
+              <DialogTitle className="font-display text-lg text-foreground font-bold">Monthly Budget Settings</DialogTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 Configure monthly target budgets in {CURRENCY}. Set to 0 to keep uncapped.
               </p>
@@ -1037,8 +1037,8 @@ function ExpensesPage() {
 
             <div className="py-3 max-h-[300px] overflow-y-auto space-y-2 px-1 scrollbar-none">
               {EXPENSE_CATEGORIES.map((c) => (
-                <div key={c.value} className="flex items-center justify-between gap-4 py-1">
-                  <span className="flex items-center gap-2 text-sm font-medium">
+                <div key={c.value} className="flex items-center justify-between gap-4 py-1.5 px-2 rounded-lg hover:bg-muted/30 transition-colors">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <span>{c.emoji}</span> {c.value}
                   </span>
                   <div className="flex items-center gap-1.5 justify-end">
@@ -1051,20 +1051,20 @@ function ExpensesPage() {
                         ...tempCategoryBudgets,
                         [c.value]: e.target.value
                       })}
-                      className="w-24 h-8 text-right bg-white/[0.04] border-white/10 text-sm"
+                      className="w-24 h-8 text-right bg-background border-input text-foreground text-sm font-medium focus:ring-1 focus:ring-primary"
                       placeholder="0"
                     />
-                    <span className="text-[10px] text-muted-foreground">{CURRENCY}</span>
+                    <span className="text-[11px] text-muted-foreground font-medium">{CURRENCY}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <DialogFooter className="gap-2 pt-3 border-t border-white/5">
-              <Button type="button" variant="outline" onClick={() => setIsCategoryBudgetOpen(false)} className="h-9 text-xs border-white/10 bg-white/[0.04] hover:bg-white/10 text-muted-foreground hover:text-foreground">
+            <DialogFooter className="gap-2 pt-3 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setIsCategoryBudgetOpen(false)} className="h-9 text-xs border-border bg-muted/50 hover:bg-muted text-foreground">
                 Cancel
               </Button>
-              <Button type="submit" className="h-9 text-xs bg-lagoon text-cream hover:bg-lagoon/90">
+              <Button type="submit" className="h-9 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
                 Save Plan
               </Button>
             </DialogFooter>
