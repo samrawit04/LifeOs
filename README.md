@@ -21,7 +21,7 @@ LifePulse brings together everything you need to manage your daily life in one c
 <img width="1354" height="611" alt="image" src="https://github.com/user-attachments/assets/875509d1-775b-40de-9dde-db2cf456ee40" />
 <img width="1349" height="597" alt="image" src="https://github.com/user-attachments/assets/aac0a8e2-cedf-427d-b23c-b092cba2232a" />
 <img width="1352" height="597" alt="image" src="https://github.com/user-attachments/assets/7733735c-5aa9-4a34-ab58-8fac36620cc2" />
-<img width="1352" height="618" alt="image" src="https://github.com/user-attachments/assets/d78ab2a6-3390-41cc-b87a-5a10125c5ba5" />
+<img width="1358" height="605" alt="image" src="https://github.com/user-attachments/assets/9842a793-59bd-43bd-88f2-f7ef5fc488ba" />
 <img width="1348" height="616" alt="image" src="https://github.com/user-attachments/assets/c794cb35-4017-47dd-ab14-2b7b7c775bae" />
 <img width="1349" height="608" alt="image" src="https://github.com/user-attachments/assets/b89042f4-f14a-4cbd-922a-220f9e47f721" />
 
