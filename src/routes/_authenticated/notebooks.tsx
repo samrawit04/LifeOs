@@ -25,6 +25,7 @@ import {
   Smile,
   PlusCircle,
   Minus,
+  SwitchCamera,
 } from "lucide-react";
 import {
   useCreateFolder,
@@ -799,32 +800,49 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
         {/* ── Bottom bar ── */}
         <div className="shrink-0 border-t border-white/[0.06] bg-background/60 backdrop-blur-md">
-          <div className="mx-auto max-w-4xl px-4 py-2.5 flex items-center justify-between gap-2">
-            <button
-              onClick={() => { save(); onClose(); }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" /> Back
-            </button>
-            <div className="flex items-center gap-1">
+          <div className="mx-auto max-w-4xl overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1 px-3 py-2 min-w-max">
+              {/* Back */}
+              <button
+                onClick={() => { save(); onClose(); }}
+                className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06] mr-1"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Back
+              </button>
+
+              <div className="shrink-0 w-px h-4 bg-white/[0.08] mx-1" />
+
+              {/* Toolbar actions */}
               <ToolbarBtn icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => setRecorderMode("photo")} title="Take a photo" />
               <ToolbarBtn icon={<Mic className="h-4 w-4" />} label="Audio" onClick={() => setRecorderMode("audio")} title="Record audio" />
               <ToolbarBtn icon={<Video className="h-4 w-4" />} label="Video" onClick={() => setRecorderMode("video")} title="Record video" />
               <ToolbarBtn icon={<Paperclip className="h-4 w-4" />} label="File" onClick={() => fileInputRef.current?.click()} title="Attach file" />
               <ToolbarBtn icon={<Table2 className="h-4 w-4" />} label="Table" onClick={() => insertTable(3, 3)} title="Insert table" />
-              <div className="relative">
+              <div className="relative shrink-0">
                 <ToolbarBtn icon={<Smile className="h-4 w-4" />} label="Emoji" onClick={() => setShowEmojiPicker((p) => !p)} title="Insert emoji" />
                 {showEmojiPicker && (
                   <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} />
                 )}
               </div>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button onClick={onArchive} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" title="Archive">
-                <ArchiveIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Archive</span>
+
+              <div className="shrink-0 w-px h-4 bg-white/[0.08] mx-1" />
+
+              {/* Archive & Delete — always visible */}
+              <button
+                onClick={onArchive}
+                className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]"
+                title="Archive"
+              >
+                <ArchiveIcon className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">Archive</span>
               </button>
-              <button onClick={() => setDeleteDialogOpen(true)} className="flex items-center gap-1 text-[11px] text-destructive/60 hover:text-destructive transition-colors px-2 py-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
-                <Trash2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Delete</span>
+              <button
+                onClick={() => setDeleteDialogOpen(true)}
+                className="shrink-0 flex items-center gap-1 text-[11px] text-destructive hover:text-destructive transition-colors px-2 py-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20"
+                title="Delete"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">Delete</span>
               </button>
             </div>
           </div>
@@ -891,7 +909,7 @@ function ToolbarBtn({ icon, label, onClick, title }: { icon: React.ReactNode; la
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] border border-transparent hover:border-white/[0.08] transition-all duration-150"
+      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] border border-transparent hover:border-white/[0.08] transition-all duration-150"
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
@@ -917,16 +935,29 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Photo defaults to front (selfie) camera; video/audio default to rear
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(
+    mode === "photo" ? "user" : "environment"
+  );
 
-  // Start camera/mic stream
+  const isSelfie = facingMode === "user";
+
+  // Start camera/mic stream — re-runs when facingMode changes
   useEffect(() => {
     let cancelled = false;
+    setIsReady(false);
+    setError(null);
+
+    // Stop prior tracks before requesting a new stream
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+
     const constraints: MediaStreamConstraints =
       mode === "audio"
         ? { audio: true }
         : mode === "photo"
-        ? { video: { facingMode: "environment" }, audio: false }
-        : { video: { facingMode: "environment" }, audio: true };
+        ? { video: { facingMode }, audio: false }
+        : { video: { facingMode }, audio: true };
 
     navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
       if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
@@ -945,7 +976,12 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [mode]);
+  }, [mode, facingMode]);
+
+  const flipCamera = () => {
+    if (isRecording) return;
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  };
 
   const startRecording = () => {
     if (!streamRef.current) return;
@@ -987,7 +1023,14 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
     if (!video || !canvas) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    if (isSelfie) {
+      // Mirror the captured frame so the selfie matches the mirrored preview
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     onCapture({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -1053,18 +1096,46 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
           /* Camera UI (photo or video) */
           <div className="flex flex-col items-center gap-4 w-full max-w-md">
             <div className="relative w-full rounded-2xl overflow-hidden bg-black/50 border border-white/10">
-              <video ref={videoRef} muted playsInline className="w-full h-64 sm:h-80 object-cover" />
+              {/* Mirror the preview when using front (selfie) camera */}
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                className={cn(
+                  "w-full h-64 sm:h-80 object-cover transition-transform duration-200",
+                  isSelfie && "-scale-x-100"
+                )}
+              />
               {isRecording && (
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur rounded-full px-3 py-1">
                   <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                   <span className="text-xs text-white font-mono">{fmtTime(elapsed)}</span>
                 </div>
               )}
+              {/* Facing mode badge */}
+              <div className="absolute top-3 right-3">
+                <span className="text-[10px] text-white/60 bg-black/50 rounded-full px-2 py-0.5 backdrop-blur">
+                  {isSelfie ? "Front" : "Rear"}
+                </span>
+              </div>
             </div>
             <canvas ref={canvasRef} className="hidden" />
 
             {isReady && (
-              <div className="flex gap-3">
+              <div className="flex items-center gap-6">
+                {/* Flip camera button */}
+                <button
+                  onClick={flipCamera}
+                  disabled={isRecording}
+                  title="Flip camera"
+                  className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center border border-white/20 bg-white/10 text-white transition-all duration-150",
+                    isRecording ? "opacity-30 cursor-not-allowed" : "hover:bg-white/20 active:scale-95"
+                  )}
+                >
+                  <SwitchCamera className="h-5 w-5" />
+                </button>
+
                 {mode === "photo" ? (
                   <button
                     onClick={takePhoto}
@@ -1089,6 +1160,9 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
                       : <VideoOff className="h-6 w-6" />}
                   </button>
                 )}
+
+                {/* Spacer to visually centre the main button */}
+                <div className="h-10 w-10" />
               </div>
             )}
           </div>
