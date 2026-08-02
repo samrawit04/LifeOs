@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { format, isBefore, isToday, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ function TasksPage() {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetColumn, setTargetColumn] = useState<ColumnId>("backlog");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Task Edit State
   const [editingTask, setEditingTask] = useState<Item | null>(null);
@@ -277,7 +279,7 @@ function TasksPage() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-              onDelete={(t) => del.mutate(t.id)}
+              onDelete={(t) => setConfirmDeleteId(t.id)}
               onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
               onEdit={openEditModal}
               onMoveToToday={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: new Date().toISOString() } })}
@@ -297,7 +299,7 @@ function TasksPage() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-              onDelete={(t) => del.mutate(t.id)}
+              onDelete={(t) => setConfirmDeleteId(t.id)}
               onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
               onEdit={openEditModal}
               onMoveToBacklog={(t) => update.mutate({ id: t.id, patch: { completed: false, due_date: null } })}
@@ -317,7 +319,7 @@ function TasksPage() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onToggle={(t) => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-              onDelete={(t) => del.mutate(t.id)}
+              onDelete={(t) => setConfirmDeleteId(t.id)}
               onArchive={(t) => update.mutate({ id: t.id, patch: { archived: true } })}
               onEdit={openEditModal}
             />
@@ -344,7 +346,7 @@ function TasksPage() {
                       isDragging={draggedItemId === t.id}
                       onDragStart={handleDragStart}
                       onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                      onDelete={() => del.mutate(t.id)}
+                      onDelete={() => setConfirmDeleteId(t.id)}
                       onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
                       onEdit={() => openEditModal(t)}
                     />
@@ -367,7 +369,7 @@ function TasksPage() {
                       isDragging={draggedItemId === t.id}
                       onDragStart={handleDragStart}
                       onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                      onDelete={() => del.mutate(t.id)}
+                      onDelete={() => setConfirmDeleteId(t.id)}
                       onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
                       onEdit={() => openEditModal(t)}
                     />
@@ -390,7 +392,7 @@ function TasksPage() {
                       isDragging={draggedItemId === t.id}
                       onDragStart={handleDragStart}
                       onToggle={() => update.mutate({ id: t.id, patch: { completed: !t.completed } })}
-                      onDelete={() => del.mutate(t.id)}
+                      onDelete={() => setConfirmDeleteId(t.id)}
                       onArchive={() => update.mutate({ id: t.id, patch: { archived: true } })}
                       onEdit={() => openEditModal(t)}
                     />
@@ -566,6 +568,20 @@ function TasksPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Delete this task?"
+        description="This task will be permanently deleted. This action cannot be undone."
+        confirmLabel="Delete Task"
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            del.mutate(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }
+        }}
+      />
     </div>
   );
 }

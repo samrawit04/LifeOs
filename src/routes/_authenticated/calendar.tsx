@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   component: CalendarPage,
@@ -32,6 +33,7 @@ function CalendarPage() {
   const [cursor, setCursor] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const events = useMemo(() =>
     items.filter((i) => !i.archived && ((i.type === "event" && i.event_date) || (i.type === "task" && i.due_date))),
@@ -179,7 +181,21 @@ function CalendarPage() {
         folders={folders}
         onCreate={(payload) => create.mutate(payload)}
         onUpdate={(id, patch) => update.mutate({ id, patch })}
-        onDelete={(id) => del.mutate(id)}
+        onDelete={(id) => { setEditing(null); setSelectedDate(null); setConfirmDeleteId(id); }}
+      />
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Delete this event?"
+        description="This event will be permanently deleted from your calendar."
+        confirmLabel="Delete Event"
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            del.mutate(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }
+        }}
       />
     </div>
   );

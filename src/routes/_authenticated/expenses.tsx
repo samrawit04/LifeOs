@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 
 export const Route = createFileRoute("/_authenticated/expenses")({
   component: ExpensesPage,
@@ -53,6 +54,8 @@ function ExpensesPage() {
 
   // Date navigator — defaults to today, can navigate to any past day
   const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()));
+  const [confirmDeleteExpenseId, setConfirmDeleteExpenseId] = useState<string | null>(null);
+  const [confirmDeleteWishlistId, setConfirmDeleteWishlistId] = useState<string | null>(null);
 
   const isSelectedToday = useMemo(() => {
     return startOfDay(selectedDate).getTime() === startOfDay(new Date()).getTime();
@@ -558,7 +561,7 @@ function ExpensesPage() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => handleDeleteExpense(e.id)}
+                        onClick={() => setConfirmDeleteExpenseId(e.id)}
                         disabled={del.isPending}
                         className="rounded p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition cursor-pointer"
                         title="Delete expense"
@@ -836,7 +839,7 @@ function ExpensesPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => del.mutate(e.id)}
+                      onClick={() => setConfirmDeleteExpenseId(e.id)}
                       disabled={del.isPending}
                       className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-400 transition cursor-pointer"
                       title="Delete expense"
@@ -926,7 +929,7 @@ function ExpensesPage() {
                         <span className="text-[10px] bg-white/5 text-muted-foreground px-2 py-0.5 rounded">Bought</span>
                       )}
                       <button
-                        onClick={() => handleDeleteWishlistItem(p.id)}
+                        onClick={() => setConfirmDeleteWishlistId(p.id)}
                         className="p-1.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1061,6 +1064,34 @@ function ExpensesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteExpenseId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteExpenseId(null)}
+        title="Delete this expense?"
+        description="This expense record will be permanently deleted."
+        confirmLabel="Delete Expense"
+        onConfirm={() => {
+          if (confirmDeleteExpenseId) {
+            handleDeleteExpense(confirmDeleteExpenseId);
+            setConfirmDeleteExpenseId(null);
+          }
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteWishlistId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteWishlistId(null)}
+        title="Delete planned purchase?"
+        description="This item will be permanently removed from your wishlist."
+        confirmLabel="Remove Item"
+        onConfirm={() => {
+          if (confirmDeleteWishlistId) {
+            handleDeleteWishlistItem(confirmDeleteWishlistId);
+            setConfirmDeleteWishlistId(null);
+          }
+        }}
+      />
     </div>
   );
 }

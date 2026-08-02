@@ -6,6 +6,7 @@ import { NOTE_COLORS, noteColor, noteGradient, type Item } from "@/lib/lifeos-ty
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 
 export const Route = createFileRoute("/_authenticated/sticky")({
   component: StickyBoard,
@@ -126,6 +127,7 @@ function Note({
   const [size, setSize] = useState({ w: note.width ?? DEFAULT_W, h: note.height ?? DEFAULT_H });
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const startRef = useRef<{ mx: number; my: number; px: number; py: number; w: number; h: number }>({ mx: 0, my: 0, px: 0, py: 0, w: 0, h: 0 });
 
   useEffect(() => {
@@ -226,7 +228,7 @@ function Note({
             <Pin className="h-3.5 w-3.5" fill={note.pinned ? "currentColor" : "none"} />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
             className="rounded-md p-1 transition hover:bg-black/10 hover:text-rose-700"
             title="Delete"
           >
@@ -250,6 +252,7 @@ function Note({
         style={{ background: active.to }}
       />
 
+      {/* resize handle */}
       <div
         onMouseDown={startResize}
         className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize"
@@ -257,6 +260,15 @@ function Note({
           background: "linear-gradient(135deg, transparent 50%, oklch(0 0 0 / 0.25) 50%)",
           borderBottomRightRadius: 16,
         }}
+      />
+
+      <ConfirmDeleteDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this note?"
+        description="The sticky note will be permanently removed. This cannot be undone."
+        confirmLabel="Delete Note"
+        onConfirm={() => { setConfirmDelete(false); onDelete(); }}
       />
     </div>
   );
