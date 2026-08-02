@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BookOpen,
   FolderPlus,
@@ -425,8 +426,6 @@ function Notebooks() {
         )}
       </div>
 
-
-
       {/* ── Dialogs ── */}
       <Dialog open={createSubFolderParentId !== null} onOpenChange={(o) => !o && setCreateSubFolderParentId(null)}>
         <DialogContent className="border-white/10 bg-[#1a1e1a] text-foreground sm:max-w-sm">
@@ -553,6 +552,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   const [title, setTitle] = useState(page.title ?? "");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [recorderMode, setRecorderMode] = useState<"idle" | "photo" | "audio" | "video">("idle");
   const activeBlockIdRef = useRef<string | null>(null);
@@ -569,12 +569,10 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     [blocks, title, onChange]
   );
 
-  // Update one text block's content
   const updateText = (id: string, content: string) => {
     setBlocks((prev) => prev.map((b) => b.id === id && b.kind === "text" ? { ...b, content } : b));
   };
 
-  // Insert a media block (+ empty text continuation) after the active text block
   const insertMedia = useCallback((media: Omit<MediaBlock, "kind">) => {
     setBlocks((prev) => {
       const activeId = activeBlockIdRef.current ?? prev[prev.length - 1]?.id;
@@ -589,13 +587,11 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
         continuationBlock,
         ...prev.slice(insertAt),
       ];
-      // Save immediately with the new blocks
       onChange({ title, content: serializeBlocks(next) });
       return next;
     });
   }, [onChange, title]);
 
-  // Focus the continuation textarea after inserting media
   useEffect(() => {
     if (!focusPendingRef.current) return;
     const id = focusPendingRef.current;
@@ -608,7 +604,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   const removeBlock = (id: string) => {
     setBlocks((prev) => {
       const next = prev.filter((b) => b.id !== id);
-      // Always keep at least one text block
       if (next.filter(b => b.kind === "text").length === 0) next.push({ id: genId(), kind: "text", content: "" });
       save(next);
       return next;
@@ -739,10 +734,8 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   return (
     <>
       <div className="flex flex-col h-full overflow-hidden">
-        {/* ── Scrollable writing area ── */}
         <div className="flex-1 overflow-auto min-h-0">
           <div className="mx-auto max-w-4xl px-4 pt-5 pb-6">
-            {/* Title */}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -754,8 +747,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
               {format(new Date(page.updated_at), "EEEE, MMM d · yyyy")}
             </p>
             <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent mb-4" />
-
-            {/* ── Blocks ── */}
             {blocks.map((block, idx) => {
               if (block.kind === "text") {
                 return (
@@ -798,11 +789,9 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
           </div>
         </div>
 
-        {/* ── Bottom bar ── */}
         <div className="shrink-0 border-t border-white/[0.06] bg-background/60 backdrop-blur-md">
           <div className="mx-auto max-w-4xl overflow-x-auto scrollbar-none">
             <div className="flex items-center gap-1 px-3 py-2 min-w-max">
-              {/* Back */}
               <button
                 onClick={() => { save(); onClose(); }}
                 className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06] mr-1"
@@ -812,22 +801,29 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
               <div className="shrink-0 w-px h-4 bg-white/[0.08] mx-1" />
 
-              {/* Toolbar actions */}
               <ToolbarBtn icon={<Camera className="h-4 w-4" />} label="Photo" onClick={() => setRecorderMode("photo")} title="Take a photo" />
               <ToolbarBtn icon={<Mic className="h-4 w-4" />} label="Audio" onClick={() => setRecorderMode("audio")} title="Record audio" />
               <ToolbarBtn icon={<Video className="h-4 w-4" />} label="Video" onClick={() => setRecorderMode("video")} title="Record video" />
               <ToolbarBtn icon={<Paperclip className="h-4 w-4" />} label="File" onClick={() => fileInputRef.current?.click()} title="Attach file" />
               <ToolbarBtn icon={<Table2 className="h-4 w-4" />} label="Table" onClick={() => insertTable(3, 3)} title="Insert table" />
-              <div className="relative shrink-0">
-                <ToolbarBtn icon={<Smile className="h-4 w-4" />} label="Emoji" onClick={() => setShowEmojiPicker((p) => !p)} title="Insert emoji" />
-                {showEmojiPicker && (
-                  <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmojiPicker(false)} />
-                )}
-              </div>
+              <ToolbarBtn
+                btnRef={emojiButtonRef}
+                icon={<Smile className="h-4 w-4" />}
+                label="Emoji"
+                onClick={() => setShowEmojiPicker((p) => !p)}
+                title="Insert emoji"
+              />
+              {showEmojiPicker && emojiButtonRef.current && createPortal(
+                <EmojiPicker
+                  anchorEl={emojiButtonRef.current}
+                  onSelect={insertEmoji}
+                  onClose={() => setShowEmojiPicker(false)}
+                />,
+                document.body
+              )}
 
               <div className="shrink-0 w-px h-4 bg-white/[0.08] mx-1" />
 
-              {/* Archive & Delete — always visible */}
               <button
                 onClick={onArchive}
                 className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-white/[0.06]"
@@ -875,8 +871,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   );
 }
 
-// ─── Auto-growing textarea block ───────────────────────────────────────────────
-
 function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
   id: string; value: string; placeholder: string;
   onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
@@ -902,11 +896,11 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
   );
 }
 
-// ─── Toolbar Button ────────────────────────────────────────────────────────────
 
-function ToolbarBtn({ icon, label, onClick, title }: { icon: React.ReactNode; label: string; onClick: () => void; title?: string }) {
+function ToolbarBtn({ icon, label, onClick, title, btnRef }: { icon: React.ReactNode; label: string; onClick: () => void; title?: string; btnRef?: React.RefObject<HTMLButtonElement | null> }) {
   return (
     <button
+      ref={btnRef}
       onClick={onClick}
       title={title}
       className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] border border-transparent hover:border-white/[0.08] transition-all duration-150"
@@ -1337,28 +1331,46 @@ const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
   { label: "Symbols", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💕","💖","✨","⚡","💫","🌟","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","✅","❌","⭕","💯","🔔","💬","👍"] },
 ];
 
-function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+function EmojiPicker({ anchorEl, onSelect, onClose }: { anchorEl: HTMLElement; onSelect: (emoji: string) => void; onClose: () => void }) {
   const [activeCategory, setActiveCategory] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    const rect = anchorEl.getBoundingClientRect();
+    const pickerWidth = 288; // w-72 = 18rem = 288px
+    const pickerHeight = 240;
+    const left = Math.max(8, Math.min(rect.right - pickerWidth, window.innerWidth - pickerWidth - 8));
+    const top = rect.top - pickerHeight - 8;
+    setPos({ top: Math.max(8, top), left });
+  }, [anchorEl]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        !anchorEl.contains(e.target as Node)
+      ) {
+        onClose();
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
+  }, [onClose, anchorEl]);
+
+  if (!pos) return null;
 
   return (
     <div
       ref={ref}
-      className="absolute bottom-full mb-2 right-0 w-72 rounded-2xl border border-white/10 bg-[#1a1e1a]/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden"
+      style={{ top: pos.top, left: pos.left }}
+      className="fixed w-72 rounded-2xl border border-white/10 bg-[#1a1e1a]/98 dark:bg-[#1a1e1a]/98 backdrop-blur-xl shadow-2xl z-[9999] overflow-hidden"
     >
       <div className="flex border-b border-white/[0.07] overflow-x-auto scrollbar-none">
         {EMOJI_CATEGORIES.map((cat, i) => (
           <button
             key={i}
-            onClick={() => setActiveCategory(i)}
+            onMouseDown={(e) => { e.preventDefault(); setActiveCategory(i); }}
             className={cn(
               "shrink-0 px-3 py-2 text-[10px] font-medium whitespace-nowrap transition-colors",
               activeCategory === i
@@ -1374,7 +1386,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
         {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, i) => (
           <button
             key={i}
-            onClick={() => onSelect(emoji)}
+            onMouseDown={(e) => { e.preventDefault(); onSelect(emoji); }}
             className="h-8 w-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
             title={emoji}
           >
