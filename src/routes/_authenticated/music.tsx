@@ -358,11 +358,73 @@ function MusicPage() {
     }
   };
 
+  function extractYoutubeVideoId(input: string): string | null {
+    const str = input.trim();
+    if (!str) return null;
+    const vMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (vMatch) return vMatch[1];
+    const pathMatch = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|live\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    if (pathMatch) return pathMatch[1];
+    if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+    return null;
+  }
+
   const handleSearch = async (queryToSearch?: string) => {
     const q = (queryToSearch ?? searchQuery).trim();
     if (!q) return;
-    if (!youtubeApiKey) { toast.error("Set VITE_YOUTUBE_API_KEY to enable search."); return; }
+
     setIsSearching(true);
+    const extractedId = extractYoutubeVideoId(q);
+
+    if (extractedId) {
+      try {
+        if (youtubeApiKey) {
+          const res = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${extractedId}&key=${youtubeApiKey}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.items && data.items.length > 0) {
+              const item = data.items[0];
+              setSearchResults([
+                {
+                  videoId: extractedId,
+                  title: item.snippet.title,
+                  channelName: item.snippet.channelTitle,
+                  thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || `https://img.youtube.com/vi/${extractedId}/hqdefault.jpg`,
+                  durationSeconds: 0,
+                },
+              ]);
+              setActiveMainTab("search");
+              setIsSearching(false);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("API video details fetch failed, falling back to direct video card", err);
+      }
+
+      setSearchResults([
+        {
+          videoId: extractedId,
+          title: `YouTube Video (${extractedId})`,
+          channelName: "YouTube Direct Link",
+          thumbnail: `https://img.youtube.com/vi/${extractedId}/hqdefault.jpg`,
+          durationSeconds: 0,
+        },
+      ]);
+      setActiveMainTab("search");
+      setIsSearching(false);
+      return;
+    }
+
+    if (!youtubeApiKey) {
+      toast.error("Set VITE_YOUTUBE_API_KEY to enable search.");
+      setIsSearching(false);
+      return;
+    }
+
     try {
       const res = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q)}&type=video&key=${youtubeApiKey}&maxResults=12`
@@ -379,8 +441,11 @@ function MusicPage() {
         }))
       );
       setActiveMainTab("search");
-    } catch { toast.error("YouTube search failed"); }
-    finally { setIsSearching(false); }
+    } catch {
+      toast.error("YouTube search failed");
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handlePlayTrack = (video: VideoInfo) => {
