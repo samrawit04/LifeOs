@@ -42,6 +42,7 @@ import type { Folder, Item } from "@/lib/lifeos-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -428,15 +429,15 @@ function Notebooks() {
 
       {/* ── Dialogs ── */}
       <Dialog open={createSubFolderParentId !== null} onOpenChange={(o) => !o && setCreateSubFolderParentId(null)}>
-        <DialogContent className="border-white/10 bg-[#1a1e1a] text-foreground sm:max-w-sm">
+        <DialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-sm p-6">
           <form onSubmit={handleCreateSubFolder}>
-            <DialogHeader><DialogTitle className="font-display text-lg">New sub-notebook</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-display text-lg font-bold text-foreground">New sub-notebook</DialogTitle></DialogHeader>
             <div className="py-4">
-              <Input value={createSubFolderName} onChange={(e) => setCreateSubFolderName(e.target.value)} placeholder="Name…" autoFocus className="border-white/10 bg-white/[0.04] text-sm" />
+              <Input value={createSubFolderName} onChange={(e) => setCreateSubFolderName(e.target.value)} placeholder="Name…" autoFocus className="border border-input bg-background text-foreground text-sm h-9 rounded-xl" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setCreateSubFolderParentId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
-              <Button type="submit" size="sm" disabled={createFolder.isPending} className="bg-primary text-primary-foreground">
+              <Button type="button" variant="outline" size="sm" onClick={() => setCreateSubFolderParentId(null)} className="border border-border bg-background text-foreground hover:bg-muted text-xs h-9 rounded-xl">Cancel</Button>
+              <Button type="submit" size="sm" disabled={createFolder.isPending} className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-xl px-4">
                 {createFolder.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Create"}
               </Button>
             </DialogFooter>
@@ -445,15 +446,15 @@ function Notebooks() {
       </Dialog>
 
       <Dialog open={renameFolderId !== null} onOpenChange={(o) => !o && setRenameFolderId(null)}>
-        <DialogContent className="border-white/10 bg-[#1a1e1a] text-foreground sm:max-w-sm">
+        <DialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-sm p-6">
           <form onSubmit={handleRenameFolder}>
-            <DialogHeader><DialogTitle className="font-display text-lg">Rename notebook</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-display text-lg font-bold text-foreground">Rename notebook</DialogTitle></DialogHeader>
             <div className="py-4">
-              <Input value={renameFolderName} onChange={(e) => setRenameFolderName(e.target.value)} placeholder="New name…" autoFocus className="border-white/10 bg-white/[0.04] text-sm" />
+              <Input value={renameFolderName} onChange={(e) => setRenameFolderName(e.target.value)} placeholder="New name…" autoFocus className="border border-input bg-background text-foreground text-sm h-9 rounded-xl" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setRenameFolderId(null)} className="border-white/10 bg-white/[0.04]">Cancel</Button>
-              <Button type="submit" size="sm" disabled={updateFolder.isPending} className="bg-primary text-primary-foreground">
+              <Button type="button" variant="outline" size="sm" onClick={() => setRenameFolderId(null)} className="border border-border bg-background text-foreground hover:bg-muted text-xs h-9 rounded-xl">Cancel</Button>
+              <Button type="submit" size="sm" disabled={updateFolder.isPending} className="bg-primary text-primary-foreground text-xs font-semibold h-9 rounded-xl px-4">
                 {updateFolder.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
               </Button>
             </DialogFooter>
@@ -461,18 +462,14 @@ function Notebooks() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteFolderId !== null} onOpenChange={(o) => !o && setDeleteFolderId(null)}>
-        <AlertDialogContent className="border-white/10 bg-[#1a1e1a] text-foreground">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-display text-lg">Delete notebook?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground">All pages inside will be deleted. This cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-3 gap-2">
-            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteFolderId !== null}
+        onOpenChange={(o) => !o && setDeleteFolderId(null)}
+        title="Delete notebook?"
+        description="All pages inside this notebook will be deleted permanently. This cannot be undone."
+        confirmLabel="Delete Notebook"
+        onConfirm={handleDeleteFolder}
+      />
     </div>
   );
 }
@@ -855,18 +852,14 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
         />
       )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="border-white/10 bg-[#1a1e1a] text-foreground">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-display text-lg">Delete this page?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground">This will permanently delete the page. Cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-3 gap-2">
-            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/10">Keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete this page?"
+        description="This notebook page will be permanently deleted. This cannot be undone."
+        confirmLabel="Delete Page"
+        onConfirm={onDelete}
+      />
     </>
   );
 }

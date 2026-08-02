@@ -32,11 +32,11 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="border border-border bg-card text-card-foreground shadow-2xl sm:max-w-sm">
+      <AlertDialogContent className="border border-border bg-card text-card-foreground shadow-2xl rounded-2xl sm:max-w-sm p-6">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display text-base font-semibold text-foreground flex items-center gap-2">
-            <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-destructive/15 text-destructive shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <AlertDialogTitle className="font-display text-base font-bold text-foreground flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/15 text-destructive shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                 <path d="M10 11v6M14 11v6" />
@@ -45,17 +45,17 @@ export function ConfirmDeleteDialog({
             </span>
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-sm text-muted-foreground pl-9">
+          <AlertDialogDescription className="text-xs font-medium text-foreground/80 leading-relaxed pt-2">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="mt-2 gap-2">
-          <AlertDialogCancel className="h-9 rounded-xl border-border bg-background text-foreground hover:bg-muted/60 text-sm font-medium">
+        <AlertDialogFooter className="mt-4 gap-2">
+          <AlertDialogCancel className="h-9 rounded-xl border border-border bg-background text-foreground hover:bg-muted/70 text-xs font-semibold">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="h-9 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-semibold shadow-sm"
+            className="h-9 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-semibold shadow-sm px-4"
           >
             {confirmLabel}
           </AlertDialogAction>
