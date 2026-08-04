@@ -625,10 +625,23 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     const fileItems = items.filter((item) => item.kind === "file");
     if (fileItems.length === 0) return; // let plain-text paste fall through
     e.preventDefault();
+    e.stopPropagation();
 
-    const filePromises = fileItems.map((item) => {
+    const filesToProcess: File[] = [];
+    const seenKeys = new Set<string>();
+    for (const item of fileItems) {
       const file = item.getAsFile();
-      if (!file) return Promise.resolve(null);
+      if (!file) continue;
+      const key = `${file.name}-${file.size}-${file.type}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        filesToProcess.push(file);
+      }
+    }
+
+    if (filesToProcess.length === 0) return;
+
+    const filePromises = filesToProcess.map((file) => {
       if (file.size > MAX_FILE_BYTES) {
         toast.error(`"${file.name || "Pasted file"}" exceeds the 10 MB limit.`);
         return Promise.resolve(null);
@@ -653,7 +666,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
       const valid = results.filter((b): b is Omit<MediaBlock, "kind"> => b !== null);
       if (valid.length === 0) return;
       insertMultipleMedia(valid);
-      const hint = valid.length > 1 ? `📸 ${valid.length} items pasted horizontally!` : valid[0].type === "image" ? "📸 Image pasted!" : "📎 File pasted!";
+      const hint = valid.length > 1 ? `📸 ${valid.length} items pasted!` : valid[0].type === "image" ? "📸 Image pasted!" : "📎 File pasted!";
       setPasteHint(hint);
       setTimeout(() => setPasteHint(null), 2000);
     });
@@ -1344,15 +1357,21 @@ function AttachmentView({
 
   if (attachment.type === "image") {
     const layout = attachment.layout ?? "auto";
-    let widthClass = "w-full sm:w-auto flex-1 min-w-[200px] max-w-full";
-    if (layout === "full") widthClass = "w-full";
-    else if (layout === "half") widthClass = "w-full sm:w-[calc(50%-0.375rem)] min-w-[200px]";
-    else if (layout === "third") widthClass = "w-full sm:w-[calc(33.333%-0.5rem)] min-w-[150px]";
-    else if (layout === "auto") widthClass = "w-full sm:w-auto flex-1 min-w-[200px] max-w-full";
+    let containerClass = "relative group rounded-xl overflow-hidden border border-white/10 shadow-note bg-black/20 transition-all duration-200";
+
+    if (layout === "full") {
+      containerClass = cn(containerClass, "w-full");
+    } else if (layout === "half") {
+      containerClass = cn(containerClass, "w-full sm:w-[calc(50%-0.375rem)] shrink-0");
+    } else if (layout === "third") {
+      containerClass = cn(containerClass, "w-full sm:w-[calc(33.333%-0.5rem)] shrink-0");
+    } else {
+      containerClass = cn(containerClass, "flex-1 min-w-[180px] max-w-full");
+    }
 
     return (
-      <div className={cn("relative group rounded-xl overflow-hidden border border-white/10 shadow-note bg-black/20 transition-all duration-200", widthClass)}>
-        <img src={attachment.dataUrl} alt={attachment.name} className="w-full h-auto max-h-80 object-cover rounded-xl" />
+      <div className={containerClass}>
+        <img src={attachment.dataUrl} alt={attachment.name} className="w-full h-auto max-h-[520px] object-contain rounded-xl block" />
         <div className="absolute top-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity bg-black/75 backdrop-blur-md rounded-lg p-1 text-white gap-1 z-10">
           <div className="flex items-center gap-0.5">
             {onMoveLeft && canMoveLeft && (
