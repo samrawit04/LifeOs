@@ -590,7 +590,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     });
   }, [onChange, title]);
 
-<<<<<<< HEAD
   // ── Clipboard paste handler (images & files) ──────────────────────────────
   const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
     const items = Array.from(e.clipboardData?.items ?? []);
@@ -623,8 +622,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   }, [insertMedia]);
 
   // Focus the continuation textarea after inserting media
-=======
->>>>>>> 0d9701f39730416f62db6dc1fec17cf47c0378f7
   useEffect(() => {
     if (!focusPendingRef.current) return;
     const id = focusPendingRef.current;
@@ -767,7 +764,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   return (
     <>
       <div className="flex flex-col h-full overflow-hidden">
-<<<<<<< HEAD
         {/* ── Scrollable writing area ── */}
         <div
           className="flex-1 overflow-auto min-h-0 relative"
@@ -779,9 +775,6 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
               {pasteHint}
             </div>
           )}
-=======
-        <div className="flex-1 overflow-auto min-h-0">
->>>>>>> 0d9701f39730416f62db6dc1fec17cf47c0378f7
           <div className="mx-auto max-w-4xl px-4 pt-5 pb-6">
             <input
               value={title}
@@ -915,13 +908,9 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   );
 }
 
-<<<<<<< HEAD
 // ─── Auto-growing textarea block ───────────────────────────────────────────────
 
 function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPaste }: {
-=======
-function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
->>>>>>> 0d9701f39730416f62db6dc1fec17cf47c0378f7
   id: string; value: string; placeholder: string;
   onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
