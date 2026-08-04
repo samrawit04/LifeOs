@@ -558,6 +558,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   const activeBlockIdRef = useRef<string | null>(null);
   const focusPendingRef = useRef<string | null>(null);
   const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
 
   const save = useCallback(
     (overrideBlocks?: Block[], overrideTitle?: string) => {
@@ -594,6 +595,37 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
       return next;
     });
   }, [onChange, title]);
+
+  // ── Clipboard paste handler (images & files) ──────────────────────────────
+  const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const fileItems = items.filter((item) => item.kind === "file");
+    if (fileItems.length === 0) return; // let plain-text paste fall through
+    e.preventDefault();
+    fileItems.forEach((item) => {
+      const file = item.getAsFile();
+      if (!file) return;
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error(`"${file.name || "Pasted file"}" exceeds the 10 MB limit.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        let type: MediaBlock["type"] = "file";
+        if (file.type.startsWith("image/")) type = "image";
+        else if (file.type.startsWith("audio/")) type = "audio";
+        else if (file.type.startsWith("video/")) type = "video";
+        const name = file.name && file.name !== "image.png" ? file.name : `pasted-${type}-${Date.now()}.${file.type.split("/")[1] ?? "bin"}`;
+        insertMedia({ id: genId(), type, name, dataUrl, mimeType: file.type });
+        // Brief toast hint
+        const hint = type === "image" ? "📸 Image pasted!" : type === "audio" ? "🎵 Audio pasted!" : type === "video" ? "🎬 Video pasted!" : "📎 File pasted!";
+        setPasteHint(hint);
+        setTimeout(() => setPasteHint(null), 2000);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [insertMedia]);
 
   // Focus the continuation textarea after inserting media
   useEffect(() => {
@@ -740,7 +772,16 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     <>
       <div className="flex flex-col h-full overflow-hidden">
         {/* ── Scrollable writing area ── */}
-        <div className="flex-1 overflow-auto min-h-0">
+        <div
+          className="flex-1 overflow-auto min-h-0 relative"
+          onPaste={handlePaste}
+        >
+          {/* Paste hint toast */}
+          {pasteHint && (
+            <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/90 text-primary-foreground shadow-lg animate-fade-in">
+              {pasteHint}
+            </div>
+          )}
           <div className="mx-auto max-w-4xl px-4 pt-5 pb-6">
             {/* Title */}
             <input
@@ -767,6 +808,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
                     onChange={(val) => updateText(block.id, val)}
                     onFocus={(ta) => { activeBlockIdRef.current = block.id; activeTextareaRef.current = ta; }}
                     onBlur={() => save()}
+                    onPaste={handlePaste}
                   />
                 );
               }
@@ -877,9 +919,10 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
 // ─── Auto-growing textarea block ───────────────────────────────────────────────
 
-function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
+function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPaste }: {
   id: string; value: string; placeholder: string;
   onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -897,6 +940,7 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
       onChange={(e) => onChange(e.target.value)}
       onFocus={() => ref.current && onFocus(ref.current)}
       onBlur={onBlur}
+      onPaste={onPaste}
       className="w-full bg-transparent text-sm sm:text-base leading-[1.85] text-foreground/85 placeholder:text-muted-foreground/20 focus:outline-none resize-none min-h-[2rem] font-sans block overflow-hidden"
     />
   );
