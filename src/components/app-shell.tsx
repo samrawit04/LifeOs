@@ -130,15 +130,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={() => setOpen(true)}
             aria-label="Show sidebar"
             className="pointer-events-auto grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-background/80 text-foreground shadow-soft backdrop-blur-xl transition-all hover:bg-white/10 hover:text-primary"
+            title="Show sidebar"
           >
             <Menu className="h-4 w-4" />
           </button>
 
-          <span className="flex-1 text-center text-sm font-semibold text-foreground truncate px-2 pointer-events-none">
+          <span className="flex-1 text-center text-sm font-semibold text-foreground truncate px-2 pointer-events-none lg:hidden">
             {pageTitle}
           </span>
 
-          <div className="pointer-events-auto flex items-center gap-1.5">
+          {/* Visible ONLY on mobile screens (<1024px) */}
+          <div className="pointer-events-auto flex items-center gap-1.5 lg:hidden">
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
@@ -165,21 +167,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/15 to-transparent" />
 
-        <div className="relative flex h-16 items-center gap-3 px-5">
+        {/* Sidebar Top Header */}
+        <div className="relative flex h-16 items-center gap-2 px-4">
           <img
             src="/logo.png"
             alt="LifePulse Logo"
-            className="h-10 w-10 rounded-2xl object-cover shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)] border border-white/10"
+            className="h-9 w-9 rounded-2xl object-cover shadow-[0_10px_30px_-8px_oklch(0.78_0.14_160/0.7)] border border-white/10 shrink-0"
           />
-          <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg font-semibold text-gradient-primary">LifePulse</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your home</span>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="font-display text-base font-semibold text-gradient-primary truncate">LifePulse</span>
+            <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">your home</span>
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
+
+          {/* Mode Switcher + Notifications + Hide Sidebar on Sidebar Top Header */}
+          <div className="ml-auto flex items-center gap-1 shrink-0">
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-emerald-600" />}
+            </button>
+            <NotificationBell />
             <button
               onClick={() => setOpen(false)}
               aria-label="Hide sidebar"
               className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+              title="Hide sidebar"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -235,13 +250,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
-          <button
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="hidden lg:grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-emerald-600" />}
-          </button>
         </div>
       </aside>
 
