@@ -84,6 +84,22 @@ const NOTEBOOK_COLORS = [
 
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
+function cleanBlocks(blocks: Block[]): Block[] {
+  const result: Block[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const prev = result[result.length - 1];
+    if (b.kind === "text" && b.content.trim() === "" && prev && prev.kind === "text" && prev.content.trim() === "") {
+      continue;
+    }
+    result.push(b);
+  }
+  if (result.length === 0 || result[result.length - 1].kind !== "text") {
+    result.push({ id: genId(), kind: "text", content: "" });
+  }
+  return result;
+}
+
 function parseBlocks(raw: string | null): Block[] {
   const empty: Block[] = [{ id: genId(), kind: "text", content: "" }];
   if (!raw) return empty;
@@ -91,22 +107,18 @@ function parseBlocks(raw: string | null): Block[] {
     const p = JSON.parse(raw);
     // New block format
     if (p.version === 2 && Array.isArray(p.blocks) && p.blocks.length > 0) {
-      const blocks = p.blocks as Block[];
-      // Always end with a text block so cursor has somewhere to land
-      if (blocks[blocks.length - 1].kind !== "text") blocks.push({ id: genId(), kind: "text", content: "" });
-      return blocks;
+      return cleanBlocks(p.blocks as Block[]);
     }
     // Legacy { text, attachments } format
     if (typeof p === "object" && p !== null && "text" in p) {
       const blocks: Block[] = [{ id: genId(), kind: "text", content: p.text ?? "" }];
       for (const att of (Array.isArray(p.attachments) ? p.attachments : [])) {
         blocks.push({ id: att.id ?? genId(), kind: "media", type: att.type, name: att.name, dataUrl: att.dataUrl, mimeType: att.mimeType });
-        blocks.push({ id: genId(), kind: "text", content: "" });
       }
-      return blocks;
+      return cleanBlocks(blocks);
     }
   } catch { /* plain text fallback */ }
-  return [{ id: genId(), kind: "text", content: raw ?? "" }, { id: genId(), kind: "text", content: "" }];
+  return cleanBlocks([{ id: genId(), kind: "text", content: raw ?? "" }]);
 }
 
 function serializeBlocks(blocks: Block[]): string {
@@ -561,9 +573,10 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
   const save = useCallback(
     (overrideBlocks?: Block[], overrideTitle?: string) => {
+      const cleaned = cleanBlocks(overrideBlocks ?? blocks);
       onChange({
         title: overrideTitle ?? title,
-        content: serializeBlocks(overrideBlocks ?? blocks),
+        content: serializeBlocks(cleaned),
       });
     },
     [blocks, title, onChange]
@@ -582,12 +595,12 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
       const mediaBlocks: MediaBlock[] = mediaItems.map(m => ({ ...m, kind: "media" }));
       const continuationBlock: TextBlock = { id: genId(), kind: "text", content: "" };
       focusPendingRef.current = continuationBlock.id;
-      const next = [
+      const next = cleanBlocks([
         ...prev.slice(0, insertAt),
         ...mediaBlocks,
         continuationBlock,
         ...prev.slice(insertAt),
-      ];
+      ]);
       onChange({ title, content: serializeBlocks(next) });
       return next;
     });
@@ -684,8 +697,7 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
   const removeBlock = (id: string) => {
     setBlocks((prev) => {
-      const next = prev.filter((b) => b.id !== id);
-      if (next.filter(b => b.kind === "text").length === 0) next.push({ id: genId(), kind: "text", content: "" });
+      const next = cleanBlocks(prev.filter((b) => b.id !== id));
       save(next);
       return next;
     });
@@ -912,16 +924,21 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
               const block = group.block;
               if (block.kind === "text") {
+                const isLastGroup = groupIdx === blockGroups.length - 1;
+                const isFirstGroup = groupIdx === 0;
+                const isFocused = activeBlockIdRef.current === block.id;
+                const showPlaceholder = isFocused || isLastGroup || blockGroups.length === 1;
                 return (
                   <AutoTextarea
                     key={block.id}
                     id={`tb-${block.id}`}
                     value={block.content}
-                    placeholder={groupIdx === 0 ? "Start writing…" : "Continue writing…"}
+                    placeholder={showPlaceholder ? (isFirstGroup ? "Start writing…" : "Continue writing…") : ""}
                     onChange={(val) => updateText(block.id, val)}
                     onFocus={(ta) => { activeBlockIdRef.current = block.id; activeTextareaRef.current = ta; }}
                     onBlur={() => save()}
                     onPaste={handlePaste}
+                    onRemoveEmpty={blocks.length > 1 ? () => removeBlock(block.id) : undefined}
                   />
                 );
               }
@@ -1034,10 +1051,11 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
 // ─── Auto-growing textarea block ───────────────────────────────────────────────
 
-function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPaste }: {
+function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPaste, onRemoveEmpty }: {
   id: string; value: string; placeholder: string;
   onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  onRemoveEmpty?: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -1046,6 +1064,14 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPas
     ta.style.height = "auto";
     ta.style.height = `${ta.scrollHeight}px`;
   }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Backspace" && value === "" && onRemoveEmpty) {
+      e.preventDefault();
+      onRemoveEmpty();
+    }
+  };
+
   return (
     <textarea
       ref={ref}
@@ -1055,6 +1081,7 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPas
       onChange={(e) => onChange(e.target.value)}
       onFocus={() => ref.current && onFocus(ref.current)}
       onBlur={onBlur}
+      onKeyDown={handleKeyDown}
       onPaste={onPaste}
       className="w-full bg-transparent text-sm sm:text-base leading-[1.85] text-foreground/85 placeholder:text-muted-foreground/20 focus:outline-none resize-none min-h-[2rem] font-sans block overflow-hidden"
     />
