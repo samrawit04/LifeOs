@@ -28,6 +28,7 @@ import { MiniPlayer } from "@/components/mini-player";
 import { GlobalAudioPlayer } from "@/components/global-audio-player";
 import { NotificationBell } from "@/components/notification-bell";
 import { NotificationPoller } from "@/components/notification-poller";
+import { SidebarNotebookTree } from "@/components/sidebar-notebook-tree";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -214,6 +215,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="relative mt-4 flex-1 space-y-1 overflow-y-auto px-3">
           {NAV.map(({ to, label, icon: Icon }) => {
+            if (to === "/notebooks") {
+              return <SidebarNotebookTree key={to} currentPath={pathname} />;
+            }
             const active = pathname === to || pathname.startsWith(to + "/");
             return (
               <Link

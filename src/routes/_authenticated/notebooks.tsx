@@ -64,6 +64,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/notebooks")({
+  validateSearch: (search: Record<string, unknown>): { folderId?: string; pageId?: string } => ({
+    folderId: typeof search.folderId === "string" ? search.folderId : undefined,
+    pageId: typeof search.pageId === "string" ? search.pageId : undefined,
+  }),
   component: Notebooks,
 });
 
@@ -143,6 +147,28 @@ function Notebooks() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<Item | null>(null);
   const [newName, setNewName] = useState("");
+
+  const search = Route.useSearch();
+
+  useEffect(() => {
+    if (search.folderId !== undefined) {
+      setSelectedFolderId(search.folderId || null);
+    } else if (search.pageId === undefined) {
+      setSelectedFolderId(null);
+    }
+
+    if (search.pageId) {
+      const page = items.find((i) => i.id === search.pageId);
+      if (page) {
+        setSelectedPage(page);
+        if (page.folder_id) {
+          setSelectedFolderId(page.folder_id);
+        }
+      }
+    } else {
+      setSelectedPage(null);
+    }
+  }, [search.folderId, search.pageId, items]);
 
   const [createSubFolderParentId, setCreateSubFolderParentId] = useState<string | null>(null);
   const [createSubFolderName, setCreateSubFolderName] = useState("");
