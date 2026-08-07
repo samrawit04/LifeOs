@@ -13,6 +13,8 @@ import {
   X,
   Play,
   ChevronLeft,
+  ArrowLeft,
+  ArrowRight,
   Camera,
   Mic,
   MicOff,
@@ -74,7 +76,7 @@ export const Route = createFileRoute("/_authenticated/notebooks")({
 // ─── Block-based content model ────────────────────────────────────────────────
 
 type TextBlock  = { id: string; kind: "text"; content: string };
-type MediaBlock = { id: string; kind: "media"; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string };
+type MediaBlock = { id: string; kind: "media"; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string; layout?: "auto" | "full" | "half" | "third" };
 type TableBlock = { id: string; kind: "table"; rows: string[][] };
 type Block = TextBlock | MediaBlock | TableBlock;
 
@@ -86,6 +88,22 @@ const NOTEBOOK_COLORS = [
 
 function genId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
+function cleanBlocks(blocks: Block[]): Block[] {
+  const result: Block[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const prev = result[result.length - 1];
+    if (b.kind === "text" && b.content.trim() === "" && prev && prev.kind === "text" && prev.content.trim() === "") {
+      continue;
+    }
+    result.push(b);
+  }
+  if (result.length === 0 || result[result.length - 1].kind !== "text") {
+    result.push({ id: genId(), kind: "text", content: "" });
+  }
+  return result;
+}
+
 function parseBlocks(raw: string | null): Block[] {
   const empty: Block[] = [{ id: genId(), kind: "text", content: "" }];
   if (!raw) return empty;
@@ -93,22 +111,18 @@ function parseBlocks(raw: string | null): Block[] {
     const p = JSON.parse(raw);
     // New block format
     if (p.version === 2 && Array.isArray(p.blocks) && p.blocks.length > 0) {
-      const blocks = p.blocks as Block[];
-      // Always end with a text block so cursor has somewhere to land
-      if (blocks[blocks.length - 1].kind !== "text") blocks.push({ id: genId(), kind: "text", content: "" });
-      return blocks;
+      return cleanBlocks(p.blocks as Block[]);
     }
     // Legacy { text, attachments } format
     if (typeof p === "object" && p !== null && "text" in p) {
       const blocks: Block[] = [{ id: genId(), kind: "text", content: p.text ?? "" }];
       for (const att of (Array.isArray(p.attachments) ? p.attachments : [])) {
         blocks.push({ id: att.id ?? genId(), kind: "media", type: att.type, name: att.name, dataUrl: att.dataUrl, mimeType: att.mimeType });
-        blocks.push({ id: genId(), kind: "text", content: "" });
       }
-      return blocks;
+      return cleanBlocks(blocks);
     }
   } catch { /* plain text fallback */ }
-  return [{ id: genId(), kind: "text", content: raw ?? "" }, { id: genId(), kind: "text", content: "" }];
+  return cleanBlocks([{ id: genId(), kind: "text", content: raw ?? "" }]);
 }
 
 function serializeBlocks(blocks: Block[]): string {
@@ -581,12 +595,14 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   const activeBlockIdRef = useRef<string | null>(null);
   const focusPendingRef = useRef<string | null>(null);
   const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
 
   const save = useCallback(
     (overrideBlocks?: Block[], overrideTitle?: string) => {
+      const cleaned = cleanBlocks(overrideBlocks ?? blocks);
       onChange({
         title: overrideTitle ?? title,
-        content: serializeBlocks(overrideBlocks ?? blocks),
+        content: serializeBlocks(cleaned),
       });
     },
     [blocks, title, onChange]
@@ -596,25 +612,106 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     setBlocks((prev) => prev.map((b) => b.id === id && b.kind === "text" ? { ...b, content } : b));
   };
 
-  const insertMedia = useCallback((media: Omit<MediaBlock, "kind">) => {
+  const insertMultipleMedia = useCallback((mediaItems: Omit<MediaBlock, "kind">[]) => {
+    if (mediaItems.length === 0) return;
     setBlocks((prev) => {
       const activeId = activeBlockIdRef.current ?? prev[prev.length - 1]?.id;
       const idx = prev.findIndex((b) => b.id === activeId);
       const insertAt = idx >= 0 ? idx + 1 : prev.length;
-      const mediaBlock: MediaBlock = { ...media, kind: "media" };
+      const mediaBlocks: MediaBlock[] = mediaItems.map(m => ({ ...m, kind: "media" }));
       const continuationBlock: TextBlock = { id: genId(), kind: "text", content: "" };
       focusPendingRef.current = continuationBlock.id;
-      const next = [
+      const next = cleanBlocks([
         ...prev.slice(0, insertAt),
-        mediaBlock,
+        ...mediaBlocks,
         continuationBlock,
         ...prev.slice(insertAt),
-      ];
+      ]);
       onChange({ title, content: serializeBlocks(next) });
       return next;
     });
   }, [onChange, title]);
 
+  const insertMedia = useCallback((media: Omit<MediaBlock, "kind">) => {
+    insertMultipleMedia([media]);
+  }, [insertMultipleMedia]);
+
+  const updateBlockLayout = useCallback((id: string, layout: "auto" | "full" | "half" | "third") => {
+    setBlocks((prev) => {
+      const next = prev.map((b) => (b.id === id && b.kind === "media" ? { ...b, layout } : b));
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  const swapBlocks = useCallback((id1: string, id2: string) => {
+    setBlocks((prev) => {
+      const idx1 = prev.findIndex((b) => b.id === id1);
+      const idx2 = prev.findIndex((b) => b.id === id2);
+      if (idx1 < 0 || idx2 < 0) return prev;
+      const next = [...prev];
+      const temp = next[idx1];
+      next[idx1] = next[idx2];
+      next[idx2] = temp;
+      onChange({ title, content: serializeBlocks(next) });
+      return next;
+    });
+  }, [onChange, title]);
+
+  // ── Clipboard paste handler (images & files) ──────────────────────────────
+  const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const fileItems = items.filter((item) => item.kind === "file");
+    if (fileItems.length === 0) return; // let plain-text paste fall through
+    e.preventDefault();
+    e.stopPropagation();
+
+    const filesToProcess: File[] = [];
+    const seenKeys = new Set<string>();
+    for (const item of fileItems) {
+      const file = item.getAsFile();
+      if (!file) continue;
+      const key = `${file.name}-${file.size}-${file.type}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        filesToProcess.push(file);
+      }
+    }
+
+    if (filesToProcess.length === 0) return;
+
+    const filePromises = filesToProcess.map((file) => {
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error(`"${file.name || "Pasted file"}" exceeds the 10 MB limit.`);
+        return Promise.resolve(null);
+      }
+      return new Promise<Omit<MediaBlock, "kind"> | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          let type: MediaBlock["type"] = "file";
+          if (file.type.startsWith("image/")) type = "image";
+          else if (file.type.startsWith("audio/")) type = "audio";
+          else if (file.type.startsWith("video/")) type = "video";
+          const name = file.name && file.name !== "image.png" ? file.name : `pasted-${type}-${Date.now()}.${file.type.split("/")[1] ?? "bin"}`;
+          resolve({ id: genId(), type, name, dataUrl, mimeType: file.type, layout: type === "image" ? "auto" : undefined });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises).then((results) => {
+      const valid = results.filter((b): b is Omit<MediaBlock, "kind"> => b !== null);
+      if (valid.length === 0) return;
+      insertMultipleMedia(valid);
+      const hint = valid.length > 1 ? `📸 ${valid.length} items pasted!` : valid[0].type === "image" ? "📸 Image pasted!" : "📎 File pasted!";
+      setPasteHint(hint);
+      setTimeout(() => setPasteHint(null), 2000);
+    });
+  }, [insertMultipleMedia]);
+
+  // Focus the continuation textarea after inserting media
   useEffect(() => {
     if (!focusPendingRef.current) return;
     const id = focusPendingRef.current;
@@ -626,26 +723,37 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
 
   const removeBlock = (id: string) => {
     setBlocks((prev) => {
-      const next = prev.filter((b) => b.id !== id);
-      if (next.filter(b => b.kind === "text").length === 0) next.push({ id: genId(), kind: "text", content: "" });
+      const next = cleanBlocks(prev.filter((b) => b.id !== id));
       save(next);
       return next;
     });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    Array.from(e.target.files ?? []).forEach((file) => {
-      if (file.size > MAX_FILE_BYTES) { toast.error(`"${file.name}" exceeds 10 MB limit.`); return; }
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        let type: MediaBlock["type"] = "file";
-        if (file.type.startsWith("image/")) type = "image";
-        else if (file.type.startsWith("audio/")) type = "audio";
-        else if (file.type.startsWith("video/")) type = "video";
-        insertMedia({ id: genId(), type, name: file.name, dataUrl, mimeType: file.type });
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const filePromises = files.map((file) => {
+      if (file.size > MAX_FILE_BYTES) { toast.error(`"${file.name}" exceeds 10 MB limit.`); return Promise.resolve(null); }
+      return new Promise<Omit<MediaBlock, "kind"> | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          let type: MediaBlock["type"] = "file";
+          if (file.type.startsWith("image/")) type = "image";
+          else if (file.type.startsWith("audio/")) type = "audio";
+          else if (file.type.startsWith("video/")) type = "video";
+          resolve({ id: genId(), type, name: file.name, dataUrl, mimeType: file.type, layout: type === "image" ? "auto" : undefined });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises).then((results) => {
+      const valid = results.filter((b): b is Omit<MediaBlock, "kind"> => b !== null);
+      if (valid.length > 0) {
+        insertMultipleMedia(valid);
+      }
     });
     e.target.value = "";
   };
@@ -754,10 +862,60 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
     }
   }, []);
 
+  type BlockGroup =
+    | { kind: "single"; block: Block }
+    | { kind: "image-row"; blocks: MediaBlock[] };
+
+  const blockGroups = useMemo<BlockGroup[]>(() => {
+    const result: BlockGroup[] = [];
+    let currentImageRow: MediaBlock[] = [];
+
+    const flushRow = () => {
+      if (currentImageRow.length > 0) {
+        if (currentImageRow.length === 1 && currentImageRow[0].layout === "full") {
+          result.push({ kind: "single", block: currentImageRow[0] });
+        } else {
+          result.push({ kind: "image-row", blocks: [...currentImageRow] });
+        }
+        currentImageRow = [];
+      }
+    };
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === "media" && b.type === "image") {
+        currentImageRow.push(b);
+      } else if (b.kind === "text" && b.content.trim() === "") {
+        const nextBlock = blocks[i + 1];
+        if (nextBlock && nextBlock.kind === "media" && nextBlock.type === "image" && currentImageRow.length > 0) {
+          continue;
+        } else {
+          flushRow();
+          result.push({ kind: "single", block: b });
+        }
+      } else {
+        flushRow();
+        result.push({ kind: "single", block: b });
+      }
+    }
+    flushRow();
+    return result;
+  }, [blocks]);
+
   return (
     <>
       <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex-1 overflow-auto min-h-0">
+        {/* ── Scrollable writing area ── */}
+        <div
+          className="flex-1 overflow-auto min-h-0 relative"
+          onPaste={handlePaste}
+        >
+          {/* Paste hint toast */}
+          {pasteHint && (
+            <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/90 text-primary-foreground shadow-lg animate-fade-in">
+              {pasteHint}
+            </div>
+          )}
           <div className="mx-auto max-w-4xl px-4 pt-5 pb-6">
             <input
               value={title}
@@ -770,17 +928,43 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
               {format(new Date(page.updated_at), "EEEE, MMM d · yyyy")}
             </p>
             <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent mb-4" />
-            {blocks.map((block, idx) => {
+            {blockGroups.map((group, groupIdx) => {
+              if (group.kind === "image-row") {
+                return (
+                  <div key={`img-row-${groupIdx}`} className="flex flex-wrap items-start gap-3 my-3 w-full">
+                    {group.blocks.map((imgBlock, bIdx) => (
+                      <AttachmentView
+                        key={imgBlock.id}
+                        attachment={imgBlock}
+                        onRemove={() => removeBlock(imgBlock.id)}
+                        onChangeLayout={(layout) => updateBlockLayout(imgBlock.id, layout)}
+                        onMoveLeft={bIdx > 0 ? () => swapBlocks(imgBlock.id, group.blocks[bIdx - 1].id) : undefined}
+                        onMoveRight={bIdx < group.blocks.length - 1 ? () => swapBlocks(imgBlock.id, group.blocks[bIdx + 1].id) : undefined}
+                        canMoveLeft={bIdx > 0}
+                        canMoveRight={bIdx < group.blocks.length - 1}
+                      />
+                    ))}
+                  </div>
+                );
+              }
+
+              const block = group.block;
               if (block.kind === "text") {
+                const isLastGroup = groupIdx === blockGroups.length - 1;
+                const isFirstGroup = groupIdx === 0;
+                const isFocused = activeBlockIdRef.current === block.id;
+                const showPlaceholder = isFocused || isLastGroup || blockGroups.length === 1;
                 return (
                   <AutoTextarea
                     key={block.id}
                     id={`tb-${block.id}`}
                     value={block.content}
-                    placeholder={idx === 0 ? "Start writing…" : "Continue writing…"}
+                    placeholder={showPlaceholder ? (isFirstGroup ? "Start writing…" : "Continue writing…") : ""}
                     onChange={(val) => updateText(block.id, val)}
                     onFocus={(ta) => { activeBlockIdRef.current = block.id; activeTextareaRef.current = ta; }}
                     onBlur={() => save()}
+                    onPaste={handlePaste}
+                    onRemoveEmpty={blocks.length > 1 ? () => removeBlock(block.id) : undefined}
                   />
                 );
               }
@@ -803,8 +987,9 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
               return (
                 <div key={block.id} className="my-2">
                   <AttachmentView
-                    attachment={{ id: block.id, type: (block as MediaBlock).type, name: (block as MediaBlock).name, dataUrl: (block as MediaBlock).dataUrl, mimeType: (block as MediaBlock).mimeType }}
+                    attachment={block as MediaBlock}
                     onRemove={() => removeBlock(block.id)}
+                    onChangeLayout={(layout) => updateBlockLayout(block.id, layout)}
                   />
                 </div>
               );
@@ -890,9 +1075,13 @@ function NoteEditor({ page, onClose, onChange, onArchive, onDelete }: {
   );
 }
 
-function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
+// ─── Auto-growing textarea block ───────────────────────────────────────────────
+
+function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur, onPaste, onRemoveEmpty }: {
   id: string; value: string; placeholder: string;
   onChange: (v: string) => void; onFocus: (ta: HTMLTextAreaElement) => void; onBlur: () => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  onRemoveEmpty?: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -901,6 +1090,14 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
     ta.style.height = "auto";
     ta.style.height = `${ta.scrollHeight}px`;
   }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Backspace" && value === "" && onRemoveEmpty) {
+      e.preventDefault();
+      onRemoveEmpty();
+    }
+  };
+
   return (
     <textarea
       ref={ref}
@@ -910,6 +1107,8 @@ function AutoTextarea({ id, value, placeholder, onChange, onFocus, onBlur }: {
       onChange={(e) => onChange(e.target.value)}
       onFocus={() => ref.current && onFocus(ref.current)}
       onBlur={onBlur}
+      onKeyDown={handleKeyDown}
+      onPaste={onPaste}
       className="w-full bg-transparent text-sm sm:text-base leading-[1.85] text-foreground/85 placeholder:text-muted-foreground/20 focus:outline-none resize-none min-h-[2rem] font-sans block overflow-hidden"
     />
   );
@@ -1187,20 +1386,81 @@ function RecorderOverlay({ mode, onCapture, onClose }: {
 
 // ─── Attachment View ───────────────────────────────────────────────────────────
 
-type AttachmentLike = { id: string; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string };
+type AttachmentLike = { id: string; type: "image" | "audio" | "video" | "file"; name: string; dataUrl: string; mimeType: string; layout?: "auto" | "full" | "half" | "third" };
 
-function AttachmentView({ attachment, onRemove }: { attachment: AttachmentLike; onRemove: () => void }) {
+function AttachmentView({
+  attachment,
+  onRemove,
+  onChangeLayout,
+  onMoveLeft,
+  onMoveRight,
+  canMoveLeft,
+  canMoveRight,
+}: {
+  attachment: AttachmentLike;
+  onRemove: () => void;
+  onChangeLayout?: (layout: "auto" | "full" | "half" | "third") => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
+}) {
   const [videoPlaying, setVideoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   if (attachment.type === "image") {
+    const layout = attachment.layout ?? "auto";
+    let containerClass = "relative group rounded-xl overflow-hidden border border-white/10 shadow-note bg-black/20 transition-all duration-200";
+
+    if (layout === "full") {
+      containerClass = cn(containerClass, "w-full");
+    } else if (layout === "half") {
+      containerClass = cn(containerClass, "w-full sm:w-[calc(50%-0.375rem)] shrink-0");
+    } else if (layout === "third") {
+      containerClass = cn(containerClass, "w-full sm:w-[calc(33.333%-0.5rem)] shrink-0");
+    } else {
+      containerClass = cn(containerClass, "flex-1 min-w-[180px] max-w-full");
+    }
+
     return (
-      <div className="relative group inline-block">
-        <img src={attachment.dataUrl} alt={attachment.name} className="max-h-72 max-w-full rounded-xl object-cover border border-white/10 shadow-note" />
-        <button onClick={onRemove} className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
-          <X className="h-3 w-3" />
-        </button>
-        <p className="text-[10px] text-muted-foreground/40 mt-1">{attachment.name}</p>
+      <div className={containerClass}>
+        <img src={attachment.dataUrl} alt={attachment.name} className="w-full h-auto max-h-[520px] object-contain rounded-xl block" />
+        <div className="absolute top-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity bg-black/75 backdrop-blur-md rounded-lg p-1 text-white gap-1 z-10">
+          <div className="flex items-center gap-0.5">
+            {onMoveLeft && canMoveLeft && (
+              <button type="button" onClick={onMoveLeft} title="Move left" className="h-6 w-6 rounded flex items-center justify-center hover:bg-white/20 text-xs transition-colors">
+                <ArrowLeft className="h-3 w-3" />
+              </button>
+            )}
+            {onMoveRight && canMoveRight && (
+              <button type="button" onClick={onMoveRight} title="Move right" className="h-6 w-6 rounded flex items-center justify-center hover:bg-white/20 text-xs transition-colors">
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {onChangeLayout && (
+              <div className="flex items-center bg-white/10 rounded p-0.5 gap-0.5 text-[10px]">
+                <button type="button" onClick={() => onChangeLayout("auto")} className={cn("px-1.5 py-0.5 rounded font-medium transition-colors", layout === "auto" && "bg-primary text-primary-foreground")} title="Side-by-side (Auto)">
+                  Auto
+                </button>
+                <button type="button" onClick={() => onChangeLayout("full")} className={cn("px-1.5 py-0.5 rounded font-medium transition-colors", layout === "full" && "bg-primary text-primary-foreground")} title="Full width (100%)">
+                  100%
+                </button>
+                <button type="button" onClick={() => onChangeLayout("half")} className={cn("px-1.5 py-0.5 rounded font-medium transition-colors", layout === "half" && "bg-primary text-primary-foreground")} title="Half width (50%)">
+                  50%
+                </button>
+                <button type="button" onClick={() => onChangeLayout("third")} className={cn("px-1.5 py-0.5 rounded font-medium transition-colors", layout === "third" && "bg-primary text-primary-foreground")} title="1/3 width (33%)">
+                  33%
+                </button>
+              </div>
+            )}
+            <button type="button" onClick={onRemove} title="Delete image" className="h-6 w-6 rounded bg-red-500/30 hover:bg-red-500/60 flex items-center justify-center text-white transition-colors">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground/50 px-2.5 py-1 truncate">{attachment.name}</p>
       </div>
     );
   }
